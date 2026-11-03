@@ -557,7 +557,9 @@ h1,h2,h3,p{margin-top:0}
   .side-link{width:auto;min-width:max-content;min-height:36px;padding:0 10px;font-size:9px}
   .side-link svg{width:14px}
   .side-count{display:none}
-  .admin-topbar{height:51px;padding:0 17px}
+  .admin-topbar{height:58px;padding:0 15px;position:sticky;top:0;z-index:9;box-shadow:0 3px 12px rgba(34,35,31,.08)}
+  .view-public-link{min-height:36px;padding:0 13px;border-radius:999px;background:#a88e60;color:white;font-size:10px;font-weight:600;white-space:nowrap;box-shadow:0 2px 6px rgba(34,35,31,.12)}
+  .view-public-link svg{color:white;width:14px;height:14px}
   .admin-content{padding:23px 15px 40px}
   .admin-page-heading{align-items:flex-start;gap:13px}
   .admin-page-heading h1{font-size:27px}
