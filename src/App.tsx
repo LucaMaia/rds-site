@@ -224,7 +224,7 @@ function HomePage() {
       <section className="section featured-section">
         <div className="section-heading"><div><span className="eyebrow gold">ESCOLHAS RDS</span><h2>Imóveis em destaque</h2><p>Espaços com personalidade, selecionados para você.</p></div><Link to="/imoveis" className="text-link">Ver todos os imóveis <ArrowRight size={16} /></Link></div>
         {error && <div className="inline-error">{error}</div>}
-        <div className="property-grid">{featured.map((property) => <PropertyCard key={property.id} property={property} />)}</div>
+        {featured.length > 0 && <PropertyCarousel properties={featured} />}
         {!featured.length && loading && <Loading message="Carregando seleção de imóveis" />}
         {!featured.length && !loading && <div className="empty-featured"><p>{error ? 'Não foi possível carregar os destaques.' : 'Novos imóveis selecionados em breve.'}</p><Link to="/imoveis" className="text-link">Ver imóveis disponíveis <ArrowRight size={16} /></Link></div>}
       </section>
@@ -314,7 +314,7 @@ function ResultsPage() {
       <section className="results-content">
         <div className="result-toolbar"><div><button className="filter-toggle" onClick={() => setFiltersOpen(!filtersOpen)}><Filter size={16} />Filtros</button><span><strong>{loading ? '—' : results.length}</strong> imóveis encontrados</span></div><label className="sort-select">Ordenar por <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="recentes">Mais recentes</option><option value="menor-preco">Menor preço</option><option value="maior-preco">Maior preço</option><option value="maior-area">Maior metragem</option></select></label></div>
         {error && <div className="inline-error">{error}</div>}
-        {loading ? <Loading message="Buscando imóveis" /> : results.length ? <PropertyCarousel properties={results} /> : <div className="empty-state"><Search size={28} /><h3>Nenhum imóvel encontrado</h3><p>Tente ajustar ou limpar os filtros para ampliar sua busca.</p><button className="button button-outline" onClick={clearFilters}>Limpar filtros</button></div>}
+        {loading ? <Loading message="Buscando imóveis" /> : results.length ? <div className="property-grid results-grid">{results.map((property) => <PropertyCard key={property.id} property={property} />)}</div> : <div className="empty-state"><Search size={28} /><h3>Nenhum imóvel encontrado</h3><p>Tente ajustar ou limpar os filtros para ampliar sua busca.</p><button className="button button-outline" onClick={clearFilters}>Limpar filtros</button></div>}
       </section>
     </div>
   </main><Footer /></>
