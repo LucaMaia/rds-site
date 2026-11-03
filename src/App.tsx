@@ -96,7 +96,7 @@ function PropertyCard({ property }: { property: Property }) {
   </article>
 }
 
-function PropertyCarousel({ properties }: { properties: Property[] }) {
+function PropertyCarousel({ properties, desktopGrid = false }: { properties: Property[]; desktopGrid?: boolean }) {
   const trackRef = useRef<HTMLDivElement>(null)
   const dragStart = useRef<{ x: number; scrollLeft: number } | null>(null)
   const dragged = useRef(false)
@@ -132,7 +132,7 @@ function PropertyCarousel({ properties }: { properties: Property[] }) {
     track.scrollBy({ left: direction * track.clientWidth, behavior: 'smooth' })
   }
 
-  return <div className="property-carousel">
+  return <div className={`property-carousel${desktopGrid ? ' results-desktop-grid' : ''}`}>
     <div className="carousel-controls">
       <span>{page + 1} / {pageCount}</span>
       <button type="button" className="carousel-arrow" aria-label="Imóveis anteriores" onClick={() => move(-1)} disabled={page === 0}><ChevronLeft size={18} /></button>
@@ -314,7 +314,7 @@ function ResultsPage() {
       <section className="results-content">
         <div className="result-toolbar"><div><button className="filter-toggle" onClick={() => setFiltersOpen(!filtersOpen)}><Filter size={16} />Filtros</button><span><strong>{loading ? '—' : results.length}</strong> imóveis encontrados</span></div><label className="sort-select">Ordenar por <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="recentes">Mais recentes</option><option value="menor-preco">Menor preço</option><option value="maior-preco">Maior preço</option><option value="maior-area">Maior metragem</option></select></label></div>
         {error && <div className="inline-error">{error}</div>}
-        {loading ? <Loading message="Buscando imóveis" /> : results.length ? <div className="property-grid results-grid">{results.map((property) => <PropertyCard key={property.id} property={property} />)}</div> : <div className="empty-state"><Search size={28} /><h3>Nenhum imóvel encontrado</h3><p>Tente ajustar ou limpar os filtros para ampliar sua busca.</p><button className="button button-outline" onClick={clearFilters}>Limpar filtros</button></div>}
+        {loading ? <Loading message="Buscando imóveis" /> : results.length ? <PropertyCarousel properties={results} desktopGrid /> : <div className="empty-state"><Search size={28} /><h3>Nenhum imóvel encontrado</h3><p>Tente ajustar ou limpar os filtros para ampliar sua busca.</p><button className="button button-outline" onClick={clearFilters}>Limpar filtros</button></div>}
       </section>
     </div>
   </main><Footer /></>
