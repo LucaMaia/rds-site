@@ -306,8 +306,8 @@ const blankInput: PropertyInput = {
 
 function propertyInput(property: Property | null): PropertyInput {
   if (!property) return { ...blankInput }
-  const { id: _id, created_at: _created, updated_at: _updated, captor: _captor, broker: _broker, property_images: _images, property_videos: _videos, property_links: _links, ...input } = property
-  void _id; void _created; void _updated; void _captor; void _broker; void _images; void _videos; void _links
+  const { id: _id, created_at: _created, updated_at: _updated, captor: _captor, broker: _broker, property_images: _images, property_videos: _videos, property_links: _links, status_history: _history, ...input } = property
+  void _id; void _created; void _updated; void _captor; void _broker; void _images; void _videos; void _links; void _history
   return { ...blankInput, ...input }
 }
 
