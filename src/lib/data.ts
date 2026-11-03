@@ -1,6 +1,6 @@
 import { demoCaptors, demoProperties } from './demo'
 import { isSupabaseConfigured, supabase } from './supabase'
-import type { Captor, Property, PropertyImage, PropertyInput, PropertyLink, PropertyVideo, SiteSettings } from '../types'
+import type { Captor, IntegrationPortal, Property, PropertyImage, PropertyInput, PropertyLink, PropertyVideo, SiteSettings } from '../types'
 
 function requireSupabase() {
   if (!supabase) throw new Error('Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para acessar o banco de dados.')
@@ -46,7 +46,7 @@ export async function getAdminProperties(): Promise<Property[]> {
   if (error) throw error
   if (!data?.length) return []
   const ids = data.map((property) => property.id)
-  const [images, videos, links, captors, brokers, history, profiles] = await Promise.all([
+  const [images, videos, links, captors, brokers, history, profiles, integrations] = await Promise.all([
     client.from('property_images').select('*').in('property_id', ids).order('display_order'),
     client.from('property_videos').select('*').in('property_id', ids).order('display_order'),
     client.from('property_links').select('*').in('property_id', ids).order('display_order'),
@@ -54,8 +54,9 @@ export async function getAdminProperties(): Promise<Property[]> {
     client.from('brokers').select('*').order('name'),
     client.from('property_status_history').select('*').in('property_id', ids).order('changed_at', { ascending: false }),
     client.from('profiles').select('id, full_name'),
+    client.from('imovel_integracoes').select('*').in('imovel_id', ids),
   ])
-  for (const result of [images, videos, links, captors, brokers, history, profiles]) {
+  for (const result of [images, videos, links, captors, brokers, history, profiles, integrations]) {
     if (result.error) throw result.error
   }
   const captorMap = new Map((captors.data ?? []).map((captor) => [captor.id, captor]))
@@ -69,6 +70,7 @@ export async function getAdminProperties(): Promise<Property[]> {
     property_videos: videos.data?.filter((video) => video.property_id === property.id) ?? [],
     property_links: links.data?.filter((link) => link.property_id === property.id) ?? [],
     status_history: history.data?.filter((entry) => entry.property_id === property.id).map((entry) => ({ ...entry, changed_by_name: entry.changed_by ? profileMap.get(entry.changed_by) ?? null : null })) ?? [],
+    integrations: integrations.data?.filter((integration) => integration.imovel_id === property.id) ?? [],
   }))
 }
 
@@ -137,7 +139,7 @@ export async function saveTeamMember(kind: 'captor' | 'broker', member: Partial<
   }
 }
 
-export async function saveProperty(input: PropertyInput, id: string | null, photoFiles: File[], videoUrls: string[], links: PropertyLink[], keptImages: PropertyImage[] = [], duplicateImageUrls: string[] = []): Promise<void> {
+export async function saveProperty(input: PropertyInput, id: string | null, photoFiles: File[], videoUrls: string[], links: PropertyLink[], keptImages: PropertyImage[] = [], duplicateImageUrls: string[] = [], activePortals: IntegrationPortal[] = []): Promise<void> {
   const client = requireSupabase()
   const { code, ...fields } = input
   const payload = code.trim() ? { ...fields, code: code.trim() } : fields
@@ -225,6 +227,24 @@ export async function saveProperty(input: PropertyInput, id: string | null, phot
   if (!id && duplicateImageUrls.length) {
     const rows = duplicateImageUrls.map((url, display_order) => ({ property_id: propertyId, url, display_order, is_cover: display_order === 0 }))
     const result = await client.from('property_images').insert(rows)
+    if (result.error) throw result.error
+  }
+
+  const existingIntegrations = await client.from('imovel_integracoes').select('id, portal, ativo').eq('imovel_id', propertyId)
+  if (existingIntegrations.error) throw existingIntegrations.error
+  const selectedPortals = new Set(activePortals)
+  const existingPortals = new Set((existingIntegrations.data ?? []).map((integration) => integration.portal))
+  const updates = (existingIntegrations.data ?? [])
+    .filter((integration) => integration.ativo !== selectedPortals.has(integration.portal))
+    .map((integration) => client.from('imovel_integracoes').update({ ativo: selectedPortals.has(integration.portal) }).eq('id', integration.id))
+  const updateResults = await Promise.all(updates)
+  const failedUpdate = updateResults.find((result) => result.error)
+  if (failedUpdate?.error) throw failedUpdate.error
+  const newIntegrations = activePortals
+    .filter((portal) => !existingPortals.has(portal))
+    .map((portal) => ({ imovel_id: propertyId, portal, ativo: true }))
+  if (newIntegrations.length) {
+    const result = await client.from('imovel_integracoes').insert(newIntegrations)
     if (result.error) throw result.error
   }
 }

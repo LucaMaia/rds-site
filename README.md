@@ -45,6 +45,12 @@ O acesso administrativo usa Supabase Auth; nenhum cadastro público de usuários
 - Captadores e corretores são cadastros independentes.
 - Migração cria as tabelas, índices, views públicas, políticas RLS, bucket de imagens e os dois imóveis fictícios com fotografias ilustrativas.
 
+## Integrações XML com portais
+
+A Etapa 1 adiciona a tabela `public.imovel_integracoes`, que relaciona imóveis a `olx` ou `wimoveis`, impede duplicidade por imóvel/portal e restringe o acesso direto a administradores autenticados via RLS. A role `service_role` recebe leitura para uso exclusivo no backend das futuras Edge Functions; ela nunca deve ser usada no frontend. A migration deve ser aplicada no projeto Supabase antes de usar os controles de portais do painel.
+
+O editor administrativo permite marcar se o imóvel deverá ser incluído futuramente na seleção de cada portal. Essa preferência é salva na tabela, mas não gera XML nem publica anúncios. Os formatos, campos obrigatórios, credenciais e tratamento de anúncios desativados serão implementados somente após confirmar as especificações oficiais e a aprovação de integração de cada portal.
+
 ## Verificação
 
 ```sh

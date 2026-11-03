@@ -9,7 +9,7 @@ import {
 import { deleteProperty, getAdminProperties, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveProperty, saveSiteSettings, saveTeamMember, updatePropertyStatus, updateTeamMember } from './lib/data'
 import { currency, numberValue, whatsappContactUrl, whatsappUrl, youtubeEmbed } from './lib/format'
 import { supabase } from './lib/supabase'
-import type { Captor, Property, PropertyImage, PropertyInput, PropertyLink, PropertyStatus } from './types'
+import type { Captor, IntegrationPortal, Property, PropertyImage, PropertyInput, PropertyLink, PropertyStatus } from './types'
 
 const regions = ['Guará', 'Guará II', 'Águas Claras', 'Asa Sul', 'Asa Norte', 'Sudoeste', 'Noroeste', 'Lago Sul', 'Lago Norte', 'Taguatinga', 'Ceilândia', 'Samambaia', 'Vicente Pires', 'Park Sul', 'Jardim Botânico']
 const propertyTypes = ['Apartamento', 'Casa', 'Cobertura', 'Terreno', 'Comercial', 'Chácara']
@@ -420,6 +420,7 @@ function PropertyEditor({ property, captors, brokers, onCancel, onSaved }: {
   const [photos, setPhotos] = useState<File[]>([])
   const [videos, setVideos] = useState((property?.property_videos ?? []).map((video) => video.url).join('\n'))
   const [links, setLinks] = useState<PropertyLink[]>(property?.property_links ?? [])
+  const [activePortals, setActivePortals] = useState<IntegrationPortal[]>(() => property?.integrations?.filter((integration) => integration.ativo).map((integration) => integration.portal) ?? [])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -469,7 +470,7 @@ function PropertyEditor({ property, captors, brokers, onCancel, onSaved }: {
           if (!['https:', 'http:'].includes(imageUrl.protocol)) throw new Error(`A imagem do link "${link.name}" precisa usar HTTP ou HTTPS.`)
         }
       }
-      await saveProperty(values, property?.id ?? null, photos, videoUrls, links, images)
+      await saveProperty(values, property?.id ?? null, photos, videoUrls, links, images, [], activePortals)
       setSuccess('Imóvel salvo com sucesso.')
       onSaved()
     } catch (reason) {
@@ -511,6 +512,7 @@ function PropertyEditor({ property, captors, brokers, onCancel, onSaved }: {
     </div></section>
     <section className="form-section"><div className="form-section-heading"><span>07</span><div><h2>Vídeos</h2><p>Adicione links do YouTube, um por linha</p></div></div><label className="admin-field">Links de vídeo<textarea rows={3} value={videos} onChange={(event) => setVideos(event.target.value)} placeholder="https://www.youtube.com/watch?v=..." /></label></section>
     <section className="form-section"><div className="form-section-heading"><span>08</span><div><h2>Links externos</h2><p>Tour virtual, redes sociais ou outros portais</p></div></div><div className="link-editor-list">{links.map((link, index) => <div className="link-editor-row" key={link.id || `new-${index}`}><input placeholder="Nome do link" value={link.name} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} /><input placeholder="URL https://" value={link.url} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, url: event.target.value } : item))} /><input placeholder="URL da imagem / logotipo (opcional)" value={link.image_url ?? ''} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, image_url: event.target.value || null } : item))} /><label className="check-field"><input type="checkbox" checked={link.is_public} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, is_public: event.target.checked } : item))} />Público</label><button type="button" className="icon-button" onClick={() => moveLink(index, -1)} aria-label="Mover link para cima"><ArrowUp size={14} /></button><button type="button" className="icon-button" onClick={() => moveLink(index, 1)} aria-label="Mover link para baixo"><ArrowDown size={14} /></button><button type="button" className="icon-button danger" onClick={() => setLinks((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label="Excluir link"><Trash2 size={16} /></button></div>)}<button type="button" className="add-link" onClick={() => setLinks((current) => [...current, { id: '', property_id: property?.id ?? '', name: '', url: '', image_url: null, is_public: true, display_order: current.length }])}><Plus size={16} /> Adicionar link</button></div></section>
+    <section className="form-section"><div className="form-section-heading"><span>09</span><div><h2>Portais imobiliários</h2><p>Selecione onde este imóvel deverá ser preparado para publicação</p></div></div><p className="integration-notice">Esta seleção apenas registra sua intenção no sistema. Ainda não gera XML nem publica o anúncio nos portais.</p><div className="integration-options">{([['olx', 'OLX'], ['wimoveis', 'Wimóveis']] as const).map(([portal, label]) => <label className="check-field integration-option" key={portal}><input type="checkbox" checked={activePortals.includes(portal)} onChange={(event) => setActivePortals((current) => event.target.checked ? [...current, portal] : current.filter((item) => item !== portal))} /><span><strong>{label}</strong><small>Incluir este imóvel na seleção futura do feed</small></span></label>)}</div></section>
     <div className="editor-bottom"><button type="button" className="button button-outline" onClick={onCancel}>Cancelar</button><button className="button button-dark" disabled={saving}>{saving ? 'Salvando...' : 'Salvar imóvel'}</button></div>
   </form>
 }

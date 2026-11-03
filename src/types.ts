@@ -86,6 +86,7 @@ export interface Property {
   property_videos?: PropertyVideo[]
   property_links?: PropertyLink[]
   status_history?: PropertyStatusHistory[]
+  integrations?: PropertyIntegration[]
 }
 
 export interface PropertyImage {
@@ -120,6 +121,18 @@ export interface SiteSettings {
   contact_email: string
   instagram_url: string
 }
+
+export interface PropertyIntegration {
+  id: string
+  imovel_id: string
+  portal: IntegrationPortal
+  ativo: boolean
+  codigo_externo: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+export type IntegrationPortal = 'olx' | 'wimoveis'
 
 export interface PropertyInput {
   code: string
@@ -174,6 +187,7 @@ export interface Database {
       property_videos: DbTable<PropertyVideo, Partial<PropertyVideo> & Pick<PropertyVideo, 'property_id' | 'url'>>
       property_links: DbTable<PropertyLink, Partial<PropertyLink> & Pick<PropertyLink, 'property_id' | 'name' | 'url'>>
       property_status_history: DbTable<PropertyStatusHistory>
+      imovel_integracoes: DbTable<PropertyIntegration, Partial<PropertyIntegration> & Pick<PropertyIntegration, 'imovel_id' | 'portal'>>
       profiles: DbTable<{ id: string; role: string; full_name: string | null }>
       site_settings: DbTable<SiteSettings>
     }

@@ -373,6 +373,13 @@ h1,h2,h3,p{margin-top:0}
 .form-section-heading>span{font:500 14px var(--serif);color:#b19a70}
 .form-section-heading h2{font:500 17px var(--serif);margin:0 0 4px}
 .form-section-heading p{font-size:9px;color:#888980;margin:0}
+.integration-notice{margin:0 0 14px;padding:10px 12px;background:#f8f5ed;color:#75694f;font-size:9px;line-height:1.6;border-radius:var(--radius-small)}
+.integration-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.integration-option{min-width:0;padding:13px;border:1px solid #efede8;border-radius:var(--radius-small);align-items:flex-start}
+.integration-option>input{margin-top:2px;accent-color:#a88e60}
+.integration-option>span{display:flex;flex-direction:column;gap:4px}
+.integration-option strong{font-size:10px;color:#45463f;font-weight:600}
+.integration-option small{font-size:8px;color:#898a83;line-height:1.5}
 .admin-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .admin-form-grid>.admin-field{min-width:0}
 .admin-form-grid>.check-field,.feature-picker,.check-group{grid-column:1/-1}
@@ -582,6 +589,7 @@ h1,h2,h3,p{margin-top:0}
   .editor-actions{align-self:flex-end;margin-top:-3px}
   .form-section{padding:15px}
   .admin-form-grid{grid-template-columns:1fr;gap:12px}
+  .integration-options{grid-template-columns:1fr}
   .admin-form-grid>.check-field,.feature-picker,.check-group{grid-column:auto}
   .check-group{flex-direction:column;gap:10px}
   .link-editor-row{grid-template-columns:1fr 1fr 28px 28px 28px;gap:5px}
