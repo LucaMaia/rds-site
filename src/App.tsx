@@ -118,7 +118,7 @@ function HomePage() {
     getSiteSettings().then(setSettings).catch((reason: Error) => setSettingsError(reason.message))
   }, [])
   const featured = properties.filter((property) => property.featured).slice(0, 7)
-  const regionNames = [...new Set([...regions, ...properties.map((property) => property.neighborhood).filter(Boolean)])]
+  const regionNames = [...new Set([...regions, ...properties.map((property) => property.neighborhood).filter(Boolean)])].filter((region) => region !== 'Taguatinga Centro')
   const availableRegions = new Set(properties.map((property) => property.neighborhood))
   return <>
     <Header />
