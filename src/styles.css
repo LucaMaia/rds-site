@@ -161,6 +161,19 @@ h1,h2,h3,p{margin-top:0}
 .results-grid .card-photo-wrap{height:215px}
 .results-grid .card-copy{padding:16px}
 .results-grid .card-title{font-size:18px}
+.property-carousel{min-width:0}
+.carousel-controls{display:flex;justify-content:flex-end;align-items:center;gap:7px;margin:0 0 11px;color:#777870;font-size:9px}
+.carousel-controls>span{margin-right:5px}
+.carousel-arrow{width:31px;height:31px;display:grid;place-items:center;border:1px solid #e6e4dd;border-radius:50%;background:white;color:#44453e;transition:background .2s,color .2s,border-color .2s}
+.carousel-arrow:hover:not(:disabled){background:#292a25;border-color:#292a25;color:white}
+.carousel-arrow:disabled{opacity:.38;cursor:not-allowed}
+.property-carousel-track{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;overscroll-behavior-x:contain;touch-action:pan-x;cursor:grab}
+.property-carousel-track::-webkit-scrollbar{display:none}
+.property-carousel-track:active{cursor:grabbing}
+.property-carousel-track>.property-card{flex:0 0 calc((100% - 32px)/3);scroll-snap-align:start;scroll-snap-stop:always}
+.property-carousel-track .card-photo-wrap{height:215px}
+.property-carousel-track .card-copy{padding:16px}
+.property-carousel-track .card-title{font-size:18px}
 .empty-state{min-height:300px;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;background:#fff;border:1px solid #e9e7e0;padding:32px}
 .empty-state>svg{color:#a88e60;margin-bottom:12px}
 .empty-state h3,.empty-state h2{font:500 24px var(--serif);margin:0 0 9px}
@@ -503,8 +516,8 @@ h1,h2,h3,p{margin-top:0}
   .result-toolbar>div{gap:7px}
   .sort-select{gap:3px;font-size:8px}
   .sort-select select{font-size:9px}
-  .results-grid{grid-template-columns:1fr}
-  .results-grid .card-photo-wrap{height:230px}
+  .property-carousel-track>.property-card{flex-basis:100%}
+  .property-carousel-track .card-photo-wrap{height:230px}
   .detail-page{width:calc(100% - 34px);padding:21px 0 55px}
   .gallery{height:auto;display:flex;flex-direction:column;gap:7px}
   .gallery-main{height:270px;flex:none}

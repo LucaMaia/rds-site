@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Bath, BedDouble, Building2, Check,
@@ -94,6 +94,79 @@ function PropertyCard({ property }: { property: Property }) {
       </div>
     </div>
   </article>
+}
+
+function PropertyCarousel({ properties }: { properties: Property[] }) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const dragStart = useRef<{ x: number; scrollLeft: number } | null>(null)
+  const dragged = useRef(false)
+  const [page, setPage] = useState(0)
+  const [pageCount, setPageCount] = useState(1)
+
+  function updatePage() {
+    const track = trackRef.current
+    const firstCard = track?.firstElementChild
+    if (!track || !(firstCard instanceof HTMLElement) || !track.clientWidth) {
+      setPage(0)
+      setPageCount(1)
+      return
+    }
+    const gap = Number.parseFloat(getComputedStyle(track).columnGap) || 0
+    const cardsPerPage = Math.max(1, Math.round((track.clientWidth + gap) / (firstCard.offsetWidth + gap)))
+    const pages = Math.max(1, Math.ceil(track.children.length / cardsPerPage))
+    const maxScroll = Math.max(1, track.scrollWidth - track.clientWidth)
+    setPageCount(pages)
+    setPage(Math.min(pages - 1, Math.round((track.scrollLeft / maxScroll) * (pages - 1))))
+  }
+
+  useEffect(() => {
+    trackRef.current?.scrollTo({ left: 0 })
+    updatePage()
+    window.addEventListener('resize', updatePage)
+    return () => window.removeEventListener('resize', updatePage)
+  }, [properties])
+
+  function move(direction: -1 | 1) {
+    const track = trackRef.current
+    if (!track) return
+    track.scrollBy({ left: direction * track.clientWidth, behavior: 'smooth' })
+  }
+
+  return <div className="property-carousel">
+    <div className="carousel-controls">
+      <span>{page + 1} / {pageCount}</span>
+      <button type="button" className="carousel-arrow" aria-label="Imóveis anteriores" onClick={() => move(-1)} disabled={page === 0}><ChevronLeft size={18} /></button>
+      <button type="button" className="carousel-arrow" aria-label="Próximos imóveis" onClick={() => move(1)} disabled={page >= pageCount - 1}><ChevronRight size={18} /></button>
+    </div>
+    <div
+      className="property-carousel-track"
+      ref={trackRef}
+      onScroll={updatePage}
+      onPointerDown={(event) => {
+        if (event.pointerType === 'mouse' && event.button === 0) {
+          dragStart.current = { x: event.clientX, scrollLeft: event.currentTarget.scrollLeft }
+          dragged.current = false
+        }
+      }}
+      onPointerMove={(event) => {
+        if (!dragStart.current) return
+        const distance = event.clientX - dragStart.current.x
+        if (Math.abs(distance) > 5) dragged.current = true
+        if (dragged.current) event.currentTarget.scrollLeft = dragStart.current.scrollLeft - distance
+      }}
+      onPointerUp={() => { dragStart.current = null }}
+      onPointerCancel={() => { dragStart.current = null }}
+      onClickCapture={(event) => {
+        if (dragged.current) {
+          event.preventDefault()
+          event.stopPropagation()
+          dragged.current = false
+        }
+      }}
+    >
+      {properties.map((property) => <PropertyCard key={property.id} property={property} />)}
+    </div>
+  </div>
 }
 
 function SearchBox({ initialPurpose = 'VENDA' }: { initialPurpose?: string }) {
@@ -241,7 +314,7 @@ function ResultsPage() {
       <section className="results-content">
         <div className="result-toolbar"><div><button className="filter-toggle" onClick={() => setFiltersOpen(!filtersOpen)}><Filter size={16} />Filtros</button><span><strong>{loading ? '—' : results.length}</strong> imóveis encontrados</span></div><label className="sort-select">Ordenar por <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="recentes">Mais recentes</option><option value="menor-preco">Menor preço</option><option value="maior-preco">Maior preço</option><option value="maior-area">Maior metragem</option></select></label></div>
         {error && <div className="inline-error">{error}</div>}
-        {loading ? <Loading message="Buscando imóveis" /> : results.length ? <div className="property-grid results-grid">{results.map((property) => <PropertyCard key={property.id} property={property} />)}</div> : <div className="empty-state"><Search size={28} /><h3>Nenhum imóvel encontrado</h3><p>Tente ajustar ou limpar os filtros para ampliar sua busca.</p><button className="button button-outline" onClick={clearFilters}>Limpar filtros</button></div>}
+        {loading ? <Loading message="Buscando imóveis" /> : results.length ? <PropertyCarousel properties={results} /> : <div className="empty-state"><Search size={28} /><h3>Nenhum imóvel encontrado</h3><p>Tente ajustar ou limpar os filtros para ampliar sua busca.</p><button className="button button-outline" onClick={clearFilters}>Limpar filtros</button></div>}
       </section>
     </div>
   </main><Footer /></>
