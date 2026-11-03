@@ -11,7 +11,7 @@ import { currency, numberValue, whatsappContactUrl, whatsappUrl, youtubeEmbed } 
 import { supabase } from './lib/supabase'
 import type { Captor, Property, PropertyImage, PropertyInput, PropertyLink, PropertyStatus } from './types'
 
-const regions = ['Guará', 'Águas Claras', 'Asa Sul', 'Asa Norte', 'Sudoeste', 'Noroeste', 'Lago Sul', 'Lago Norte', 'Taguatinga', 'Ceilândia', 'Samambaia', 'Vicente Pires', 'Park Sul', 'Jardim Botânico']
+const regions = ['Guará', 'Guará II', 'Águas Claras', 'Asa Sul', 'Asa Norte', 'Sudoeste', 'Noroeste', 'Lago Sul', 'Lago Norte', 'Taguatinga', 'Ceilândia', 'Samambaia', 'Vicente Pires', 'Park Sul', 'Jardim Botânico']
 const propertyTypes = ['Apartamento', 'Casa', 'Cobertura', 'Terreno', 'Comercial', 'Chácara']
 const statuses: PropertyStatus[] = ['CRIADO', 'PUBLICADO', 'PAUSADO', 'STAND_BY', 'VENDIDO', 'ALUGADO', 'CANCELADO']
 const statusNames: Record<PropertyStatus, string> = {
@@ -133,7 +133,6 @@ function HomePage() {
     getSiteSettings().then(setSettings).catch((reason: Error) => setSettingsError(reason.message))
   }, [])
   const featured = properties.filter((property) => property.featured).slice(0, 7)
-  const regionNames = [...new Set([...regions, ...properties.map((property) => property.neighborhood).filter(Boolean)])].filter((region) => region !== 'Taguatinga Centro')
   const availableRegions = new Set(properties.map((property) => property.neighborhood))
   return <>
     <Header />
@@ -158,7 +157,7 @@ function HomePage() {
       </section>
       <section className="regions-section" id="regioes">
         <div className="section region-intro"><span className="eyebrow gold">ONDE VOCÊ QUER VIVER?</span><h2>Regiões que<br /><em>inspiram.</em></h2><p>Da vida tranquila perto do verde ao ritmo vibrante da cidade, há um endereço esperando por você.</p><Link to="/imoveis" className="text-link">Explorar regiões <ArrowRight size={16} /></Link></div>
-        <div className="region-grid">{regionNames.map((region, index) => <Link key={region} to={`/imoveis?q=${encodeURIComponent(region)}`} className={`region-tile region-${index % 6 + 1}`}><span>{availableRegions.has(region) ? `${properties.filter((property) => property.neighborhood === region).length} IMÓVEIS` : `DF · ${String(index + 1).padStart(2, '0')}`}</span><strong>{region}</strong><ArrowUpRight size={18} /></Link>)}</div>
+        <div className="region-grid">{regions.map((region, index) => <Link key={region} to={`/imoveis?q=${encodeURIComponent(region)}`} className={`region-tile region-${index % 6 + 1}`}><span>{availableRegions.has(region) ? `${properties.filter((property) => property.neighborhood === region).length} IMÓVEIS` : `DF · ${String(index + 1).padStart(2, '0')}`}</span><strong>{region}</strong><ArrowUpRight size={18} /></Link>)}</div>
       </section>
       <section className="editorial section" id="sobre"><div className="editorial-image"><img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=85" alt="Sala ampla com luz natural" loading="lazy" /></div><div className="editorial-copy"><span className="eyebrow gold">MAIS DO QUE UM IMÓVEL</span><h2>Seu próximo capítulo começa com um <em>endereço.</em></h2><p>Acreditamos que encontrar um imóvel é encontrar um jeito de viver. Por isso, cada espaço da nossa curadoria é escolhido com atenção aos detalhes, à localização e às possibilidades que ele oferece.</p><Link to="/imoveis" className="button button-outline">Encontre seu lugar <ArrowRight size={16} /></Link></div></section>
       <section className="contact-banner"><span className="eyebrow">ESTAMOS AQUI PARA AJUDAR</span><h2>O próximo passo é seu.</h2><p>{settingsError ? 'Nossos canais de contato estão temporariamente indisponíveis.' : 'Conte para a gente o que procura. Vamos encontrar juntos.'}</p>{settings.whatsapp && <a className="button button-light" href={whatsappContactUrl(settings.whatsapp)} target="_blank" rel="noreferrer">Fale com um especialista <ArrowUpRight size={16} /></a>}{!settings.whatsapp && settings.contact_email && <a className="button button-light" href={`mailto:${settings.contact_email}`}>Fale com um especialista <ArrowUpRight size={16} /></a>}</section>
