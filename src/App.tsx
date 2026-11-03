@@ -325,22 +325,6 @@ function propertyInput(property: Property | null): PropertyInput {
   return { ...blankInput, ...input }
 }
 
-type PropertyEditorDraft = {
-  values: PropertyInput
-  images: PropertyImage[]
-  videos: string
-  links: PropertyLink[]
-  pendingPhotoCount: number
-}
-
-function isPropertyEditorDraft(value: unknown): value is PropertyEditorDraft {
-  if (typeof value !== 'object' || value === null) return false
-  const draft = value as Record<string, unknown>
-  return typeof draft.values === 'object' && draft.values !== null &&
-    Array.isArray(draft.images) && typeof draft.videos === 'string' &&
-    Array.isArray(draft.links) && typeof draft.pendingPhotoCount === 'number'
-}
-
 function PropertyEditor({ property, captors, brokers, onCancel, onSaved }: {
   property: Property | null
   captors: Captor[]
@@ -348,40 +332,14 @@ function PropertyEditor({ property, captors, brokers, onCancel, onSaved }: {
   onCancel: () => void
   onSaved: () => void
 }) {
-  const draftKey = `rds-property-editor-draft:${property?.id ?? 'new'}`
-  const [draftLoad] = useState(() => {
-    try {
-      const stored = sessionStorage.getItem(draftKey)
-      if (!stored) return { draft: null, error: '' }
-      const parsed: unknown = JSON.parse(stored)
-      return isPropertyEditorDraft(parsed)
-        ? { draft: parsed, error: '' }
-        : { draft: null, error: 'O rascunho salvo não pôde ser recuperado.' }
-    } catch {
-      return { draft: null, error: 'O rascunho salvo não pôde ser lido do navegador.' }
-    }
-  })
-  const [values, setValues] = useState<PropertyInput>(() => draftLoad.draft?.values ?? propertyInput(property))
-  const [images, setImages] = useState<PropertyImage[]>(() => draftLoad.draft?.images ?? property?.property_images ?? [])
+  const [values, setValues] = useState<PropertyInput>(() => propertyInput(property))
+  const [images, setImages] = useState<PropertyImage[]>(property?.property_images ?? [])
   const [photos, setPhotos] = useState<File[]>([])
-  const [videos, setVideos] = useState(() => draftLoad.draft?.videos ?? (property?.property_videos ?? []).map((video) => video.url).join('\n'))
-  const [links, setLinks] = useState<PropertyLink[]>(() => draftLoad.draft?.links ?? property?.property_links ?? [])
+  const [videos, setVideos] = useState((property?.property_videos ?? []).map((video) => video.url).join('\n'))
+  const [links, setLinks] = useState<PropertyLink[]>(property?.property_links ?? [])
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState(draftLoad.error)
+  const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const draftRecovered = draftLoad.draft !== null
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(draftKey, JSON.stringify({ values, images, videos, links, pendingPhotoCount: photos.length } satisfies PropertyEditorDraft))
-    } catch (reason) {
-      setError(reason instanceof Error ? `Não foi possível salvar o rascunho neste navegador: ${reason.message}` : 'Não foi possível salvar o rascunho neste navegador.')
-    }
-  }, [draftKey, values, images, videos, links, photos.length])
-  function discardDraft() {
-    try { sessionStorage.removeItem(draftKey) }
-    catch { setError('Não foi possível remover o rascunho salvo neste navegador.') }
-    onCancel()
-  }
   const featureOptions = ['Piscina', 'Churrasqueira', 'Varanda', 'Varanda gourmet', 'Academia', 'Elevador', 'Portaria 24h', 'Playground', 'Salão de festas', 'Ar-condicionado', 'Armários planejados', 'Área de serviço', 'Jardim', 'Outros']
   function text(key: keyof PropertyInput, value: string) {
     setValues((current) => ({ ...current, [key]: value }))
@@ -429,8 +387,6 @@ function PropertyEditor({ property, captors, brokers, onCancel, onSaved }: {
         }
       }
       await saveProperty(values, property?.id ?? null, photos, videoUrls, links, images)
-      try { sessionStorage.removeItem(draftKey) }
-      catch { setError('O imóvel foi salvo, mas não foi possível limpar o rascunho local.') }
       setSuccess('Imóvel salvo com sucesso.')
       onSaved()
     } catch (reason) {
@@ -439,8 +395,7 @@ function PropertyEditor({ property, captors, brokers, onCancel, onSaved }: {
   }
   const field = (label: string, key: keyof PropertyInput, type = 'text', required = false, placeholder = '') => <label className="admin-field">{label}<input type={type} required={required} value={String(values[key] ?? '')} placeholder={placeholder} onChange={(event) => type === 'number' ? numeric(key, event.target.value) : text(key, event.target.value)} /></label>
   return <form className="admin-editor" onSubmit={submit}>
-    <div className="admin-page-heading editor-heading"><div><button type="button" className="back-button" onClick={discardDraft}><ArrowLeft size={15} /> Todos os imóveis</button><h1>{property ? 'Editar imóvel' : 'Cadastrar imóvel'}</h1><p>Preencha os detalhes para manter sua carteira atualizada.</p></div><div className="editor-actions"><button type="button" className="button button-outline" onClick={discardDraft}>Cancelar</button><button className="button button-dark" disabled={saving}>{saving ? 'Salvando...' : 'Salvar imóvel'}</button></div></div>
-    {draftRecovered && <div className="admin-alert success-alert">Rascunho recuperado. {draftLoad.draft.pendingPhotoCount ? 'As fotos que estavam selecionadas precisam ser adicionadas novamente.' : ''}</div>}
+    <div className="admin-page-heading editor-heading"><div><button type="button" className="back-button" onClick={onCancel}><ArrowLeft size={15} /> Todos os imóveis</button><h1>{property ? 'Editar imóvel' : 'Cadastrar imóvel'}</h1><p>Preencha os detalhes para manter sua carteira atualizada.</p></div><div className="editor-actions"><button type="button" className="button button-outline" onClick={onCancel}>Cancelar</button><button className="button button-dark" disabled={saving}>{saving ? 'Salvando...' : 'Salvar imóvel'}</button></div></div>
     {error && <div className="admin-alert error-alert">{error}</div>}{success && <div className="admin-alert success-alert">{success}</div>}
     <section className="form-section"><div className="form-section-heading"><span>01</span><div><h2>Identificação</h2><p>Informações básicas do anúncio</p></div></div><div className="admin-form-grid">
       {field('Título do imóvel', 'title', 'text', true, 'Ex.: Apartamento com vista livre')}
