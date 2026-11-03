@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Bath, BedDouble, Building2, Check,
   ChevronDown, ChevronLeft, ChevronRight, CircleUserRound, DoorOpen, Filter, Home,
@@ -20,6 +20,21 @@ const statusNames: Record<PropertyStatus, string> = {
 }
 const imageFallback = 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1400&q=85'
 
+function ScrollManager() {
+  const { pathname, hash } = useLocation()
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      if (hash) {
+        document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView()
+      } else {
+        window.scrollTo(0, 0)
+      }
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [pathname, hash])
+  return null
+}
+
 function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   return <header className="site-header">
@@ -30,9 +45,9 @@ function Header() {
       <Link to="/imoveis?finalidade=VENDA" onClick={() => setMenuOpen(false)}>Comprar</Link>
       <Link to="/imoveis?finalidade=ALUGUEL" onClick={() => setMenuOpen(false)}>Alugar</Link>
       <Link to="/imoveis" onClick={() => setMenuOpen(false)}>Imóveis</Link>
-      <a href="/#regioes" onClick={() => setMenuOpen(false)}>Regiões</a>
-      <a href="/#sobre" onClick={() => setMenuOpen(false)}>Sobre</a>
-      <a href="/#contato" onClick={() => setMenuOpen(false)}>Contato</a>
+      <Link to="/#regioes" onClick={() => setMenuOpen(false)}>Regiões</Link>
+      <Link to="/#sobre" onClick={() => setMenuOpen(false)}>Sobre</Link>
+      <Link to="/#contato" onClick={() => setMenuOpen(false)}>Contato</Link>
       <Link className="admin-link" to="/admin">Área administrativa <ArrowUpRight size={14} /></Link>
     </nav>
   </header>
@@ -627,7 +642,7 @@ function AdminPage() {
       <button className={view === 'settings' ? 'side-link active' : 'side-link'} onClick={() => changeView('settings')}><SlidersHorizontal size={17} /> Configurações</button>
     </nav><div className="sidebar-bottom"><span className="admin-user"><span className="user-avatar">R</span><span><strong>{user.email?.split('@')[0] ?? 'Administrador'}</strong><small>Administrador</small></span></span><button className="side-link logout-link" onClick={() => void logout()}><LogOut size={17} /> Sair</button><Link to="/" className="view-site-link">← Voltar ao site</Link></div></aside>
     <main className="admin-main">
-      <header className="admin-topbar"><div className="admin-topcrumb">RDS Imóveis <span>/</span> <strong>{view === 'overview' ? 'Visão geral' : view === 'properties' ? 'Imóveis' : view === 'editor' ? (selectedProperty ? 'Editar imóvel' : 'Novo imóvel') : view === 'team' ? 'Equipe' : view === 'reports' ? 'Relatórios' : 'Configurações'}</strong></div><a href="/" className="view-public-link">Ver site público <ArrowUpRight size={14} /></a></header>
+      <header className="admin-topbar"><div className="admin-topcrumb">RDS Imóveis <span>/</span> <strong>{view === 'overview' ? 'Visão geral' : view === 'properties' ? 'Imóveis' : view === 'editor' ? (selectedProperty ? 'Editar imóvel' : 'Novo imóvel') : view === 'team' ? 'Equipe' : view === 'reports' ? 'Relatórios' : 'Configurações'}</strong></div><Link to="/" className="view-public-link">Ver site público <ArrowUpRight size={14} /></Link></header>
       <div className="admin-content">
         {dataError && <div className="admin-alert error-alert">{dataError}<button onClick={() => setDataError('')} aria-label="Fechar"><X size={15} /></button></div>}
         {loadingData && <div className="admin-loading-inline"><span className="spinner" />Atualizando dados...</div>}
@@ -666,5 +681,5 @@ function PropertyTable({ properties, onEdit, onDelete, onStatus, onDuplicate }: 
 }
 
 export default function App() {
-  return <Routes><Route path="/" element={<HomePage />} /><Route path="/imoveis" element={<ResultsPage />} /><Route path="/imoveis/:id" element={<DetailPage />} /><Route path="/admin/*" element={<AdminPage />} /><Route path="*" element={<HomePage />} /></Routes>
+  return <><ScrollManager /><Routes><Route path="/" element={<HomePage />} /><Route path="/imoveis" element={<ResultsPage />} /><Route path="/imoveis/:id" element={<DetailPage />} /><Route path="/admin/*" element={<AdminPage />} /><Route path="*" element={<HomePage />} /></Routes></>
 }
