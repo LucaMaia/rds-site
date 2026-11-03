@@ -140,6 +140,26 @@ as $$
   );
 $$;
 
+-- create or replace function public.record_property_status_change()
+-- returns trigger
+-- language plpgsql
+-- security definer
+-- set search_path = ''
+-- as $$
+-- begin
+--   if tg_op = 'INSERT' or new.status is distinct from old.status then
+--     insert into public.property_status_history(property_id, from_status, to_status, changed_by)
+--     values (new.id, case when tg_op = 'INSERT' then null else old.status end, new.status, auth.uid());
+--   end if;
+--   new.updated_at := now();
+--   return new;
+-- end;
+-- $$;
+
+-- create trigger property_status_history_trigger
+--   before insert or update on public.properties
+--   for each row execute function public.record_property_status_change();
+
 create or replace function public.record_property_status_change()
 returns trigger
 language plpgsql
@@ -147,18 +167,52 @@ security definer
 set search_path = ''
 as $$
 begin
-  if tg_op = 'INSERT' or new.status is distinct from old.status then
-    insert into public.property_status_history(property_id, from_status, to_status, changed_by)
-    values (new.id, case when tg_op = 'INSERT' then null else old.status end, new.status, auth.uid());
+  if tg_op = 'INSERT'
+     or new.status is distinct from old.status then
+
+    insert into public.property_status_history (
+      property_id,
+      from_status,
+      to_status,
+      changed_by
+    )
+    values (
+      new.id,
+      case
+        when tg_op = 'INSERT' then null
+        else old.status
+      end,
+      new.status,
+      auth.uid()
+    );
+
   end if;
-  new.updated_at := now();
+
   return new;
 end;
 $$;
 
 create trigger property_status_history_trigger
-  before insert or update on public.properties
-  for each row execute function public.record_property_status_change();
+after insert or update
+on public.properties
+for each row
+execute function public.record_property_status_change();
+
+create or replace function public.update_property_timestamp()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+create trigger property_updated_at_trigger
+before update
+on public.properties
+for each row
+execute function public.update_property_timestamp();
 
 alter table public.profiles enable row level security;
 alter table public.captors enable row level security;
