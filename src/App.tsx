@@ -127,7 +127,7 @@ function HomePage() {
         <img className="hero-image" src="https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=2200&q=90" alt="Residência contemporânea cercada por natureza" />
         <div className="hero-shade" />
         <div className="hero-content">
-          <span className="hero-kicker"><span /> IMÓVEIS SELECIONADOS · BRASÍLIA</span>
+          <span className="hero-kicker"><span /> IMÓVEIS SELECIONADOS · BRASÍLIA E GOIÁS</span>
           <h1>Encontre um lugar<br />para chamar de <em>seu.</em></h1>
           <p>Explore imóveis selecionados nas melhores regiões de Brasília e de outras localidades.</p>
         </div>
