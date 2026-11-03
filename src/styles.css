@@ -33,7 +33,11 @@ h1,h2,h3,p{margin-top:0}
 .hero h1{font:500 clamp(42px,4.6vw,63px)/1.13 var(--serif);letter-spacing:-.02em;margin:26px 0 16px}
 .hero h1 em,.region-intro h2 em,.editorial h2 em,.login-card h1 em{font-weight:500;color:#d9c39d}
 .hero-content>p{font-size:14px;line-height:1.75;color:rgba(255,255,255,.86);max-width:410px;margin:0}
-.hero-search{position:absolute;z-index:2;bottom:-37px;left:50%;transform:translateX(-50%);width:min(1000px,84%)}
+.hero-search{position:absolute;z-index:2;bottom:-37px;left:50%;transform:translateX(-50%);width:min(1000px,84%);display:flex;align-items:center;gap:12px}
+.hero-search .search-box{flex:1;min-width:0}
+.instagram-search-button,.instagram-floating-button{display:grid;place-items:center;flex:0 0 auto;width:46px;height:46px;border-radius:50%;background:#262722;color:#fff;box-shadow:0 8px 22px rgba(0,0,0,.16);transition:transform .2s,background .2s}
+.instagram-search-button:hover,.instagram-floating-button:hover{background:#a88e60;transform:translateY(-2px)}
+.instagram-floating-button{display:none}
 .search-box{background:white;color:var(--ink);box-shadow:0 14px 45px rgba(0,0,0,.13);padding:0 25px 22px}
 .search-purpose{display:flex;gap:27px;border-bottom:1px solid var(--line);height:49px;align-items:stretch}
 .search-purpose button{border:0;background:none;padding:0 2px;color:#8a8b84;font-size:11px;position:relative}
@@ -478,7 +482,9 @@ h1,h2,h3,p{margin-top:0}
   .hero-content{margin:89px 25px 0;max-width:520px}
   .hero h1{font-size:clamp(43px,11vw,61px)}
   .hero-content>p{font-size:12px;max-width:310px}
-  .hero-search{bottom:-115px;width:calc(100% - 34px)}
+  .hero-search{bottom:-115px;width:calc(100% - 34px);display:block}
+  .instagram-search-button{display:none}
+  .instagram-floating-button{display:grid;position:fixed;z-index:20;right:17px;bottom:calc(17px + env(safe-area-inset-bottom));width:43px;height:43px;background:rgba(38,39,34,.88);box-shadow:0 4px 14px rgba(0,0,0,.18)}
   .search-box{padding:0 14px 15px}
   .search-fields{grid-template-columns:1fr;gap:9px;padding-top:12px}
   .search-input,.select-wrap,.search-submit{height:42px}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Bath, BedDouble, Building2, Check,
-  ChevronDown, ChevronLeft, ChevronRight, CircleUserRound, DoorOpen, Filter, Home,
+  ChevronDown, ChevronLeft, ChevronRight, CircleUserRound, DoorOpen, Filter, Home, Instagram,
   KeyRound, LayoutDashboard, LogOut, MapPin, Menu, Plus, Search, SlidersHorizontal,
   Square, Trash2, Upload, Users, X,
 } from 'lucide-react'
@@ -19,6 +19,11 @@ const statusNames: Record<PropertyStatus, string> = {
   VENDIDO: 'Vendido', ALUGADO: 'Alugado', CANCELADO: 'Cancelado',
 }
 const imageFallback = 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1400&q=85'
+const instagramUrl = 'https://www.instagram.com/rds.imoveis/'
+
+function InstagramButton({ className }: { className: string }) {
+  return <a className={className} href={instagramUrl} target="_blank" rel="noreferrer" aria-label="Acesse o Instagram da RDS Imóveis" title="Instagram da RDS Imóveis"><Instagram size={20} strokeWidth={1.8} /></a>
+}
 
 function ScrollManager() {
   const { pathname, hash } = useLocation()
@@ -218,7 +223,7 @@ function HomePage() {
           <h1>Encontre um lugar<br />para chamar de <em>seu.</em></h1>
           <p>Explore imóveis selecionados nas melhores regiões de Brasília e de outras localidades.</p>
         </div>
-        <div className="hero-search"><SearchBox /></div>
+        <div className="hero-search"><SearchBox /><InstagramButton className="instagram-search-button" /></div>
         <span className="hero-index">01 — 04</span>
       </section>
       <section className="section featured-section">
@@ -786,5 +791,7 @@ function PropertyTable({ properties, onEdit, onDelete, onStatus, onDuplicate }: 
 }
 
 export default function App() {
-  return <><ScrollManager /><Routes><Route path="/" element={<HomePage />} /><Route path="/imoveis" element={<ResultsPage />} /><Route path="/imoveis/:id" element={<DetailPage />} /><Route path="/admin/*" element={<AdminPage />} /><Route path="*" element={<HomePage />} /></Routes></>
+  const { pathname } = useLocation()
+  const isPublicPage = !pathname.startsWith('/admin')
+  return <><ScrollManager /><Routes><Route path="/" element={<HomePage />} /><Route path="/imoveis" element={<ResultsPage />} /><Route path="/imoveis/:id" element={<DetailPage />} /><Route path="/admin/*" element={<AdminPage />} /><Route path="*" element={<HomePage />} /></Routes>{isPublicPage && <InstagramButton className="instagram-floating-button" />}</>
 }
