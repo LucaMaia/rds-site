@@ -792,5 +792,7 @@ function PropertyTable({ properties, onEdit, onDelete, onStatus, onDuplicate }: 
 }
 
 export default function App() {
-  return <><ScrollManager /><Routes><Route path="/" element={<HomePage />} /><Route path="/imoveis" element={<ResultsPage />} /><Route path="/imoveis/:id" element={<DetailPage />} /><Route path="/admin/*" element={<AdminPage />} /><Route path="*" element={<HomePage />} /></Routes></>
+  const { pathname } = useLocation()
+  const isPublicPage = !pathname.startsWith('/admin')
+  return <><ScrollManager /><Routes><Route path="/" element={<HomePage />} /><Route path="/imoveis" element={<ResultsPage />} /><Route path="/imoveis/:id" element={<DetailPage />} /><Route path="/admin/*" element={<AdminPage />} /><Route path="*" element={<HomePage />} /></Routes>{isPublicPage && <InstagramButton className="instagram-floating-button" />}</>
 }
