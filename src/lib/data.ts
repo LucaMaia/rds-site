@@ -104,13 +104,37 @@ export async function updateTeamMember(kind: 'captor' | 'broker', id: string, ac
   if (error) throw error
 }
 
-export async function saveTeamMember(kind: 'captor' | 'broker', member: Partial<Captor> & Pick<Captor, 'name'>, id?: string): Promise<void> {
+export async function saveTeamMember(kind: 'captor' | 'broker', member: Partial<Captor> & Pick<Captor, 'name'>, id?: string, photo?: File): Promise<void> {
   const client = requireSupabase()
-  const result = kind === 'captor'
-    ? id ? await client.from('captors').update(member).eq('id', id) : await client.from('captors').insert(member)
-    : id ? await client.from('brokers').update(member).eq('id', id) : await client.from('brokers').insert(member)
-  const { error } = result
-  if (error) throw error
+  let uploadedPath: string | null = null
+  let payload = member
+  if (photo) {
+    const extensions: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
+    const extension = extensions[photo.type]
+    if (!extension) throw new Error('A foto deve estar no formato JPG, PNG ou WEBP.')
+    if (photo.size > 12 * 1024 * 1024) throw new Error('A foto deve ter no máximo 12 MB.')
+    uploadedPath = `team/${kind}/${crypto.randomUUID()}.${extension}`
+    const { error } = await client.storage.from('property-images').upload(uploadedPath, photo, { contentType: photo.type })
+    if (error) throw error
+    const { data } = client.storage.from('property-images').getPublicUrl(uploadedPath)
+    payload = { ...member, photo_url: data.publicUrl }
+  }
+
+  try {
+    const result = kind === 'captor'
+      ? id ? await client.from('captors').update(payload).eq('id', id) : await client.from('captors').insert(payload)
+      : id ? await client.from('brokers').update(payload).eq('id', id) : await client.from('brokers').insert(payload)
+    if (result.error) throw result.error
+  } catch (reason) {
+    if (uploadedPath) {
+      const { error } = await client.storage.from('property-images').remove([uploadedPath])
+      if (error) {
+        const saveMessage = reason instanceof Error ? reason.message : 'Não foi possível salvar o integrante.'
+        throw new Error(`${saveMessage} Também não foi possível remover a foto enviada: ${error.message}`)
+      }
+    }
+    throw reason
+  }
 }
 
 export async function saveProperty(input: PropertyInput, id: string | null, photoFiles: File[], videoUrls: string[], links: PropertyLink[], keptImages: PropertyImage[] = [], duplicateImageUrls: string[] = []): Promise<void> {
