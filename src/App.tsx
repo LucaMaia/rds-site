@@ -54,6 +54,7 @@ function Header() {
       <Link to="/#sobre" onClick={() => setMenuOpen(false)}>Sobre</Link>
       <Link to="/#contato" onClick={() => setMenuOpen(false)}>Contato</Link>
       <Link className="admin-link" to="/admin">Área administrativa <ArrowUpRight size={14} /></Link>
+      <InstagramButton className="instagram-nav-button" />
     </nav>
   </header>
 }
@@ -223,7 +224,7 @@ function HomePage() {
           <h1>Encontre um lugar<br />para chamar de <em>seu.</em></h1>
           <p>Explore imóveis selecionados nas melhores regiões de Brasília e de outras localidades.</p>
         </div>
-        <div className="hero-search"><SearchBox /><InstagramButton className="instagram-search-button" /></div>
+        <div className="hero-search"><SearchBox /></div>
         <span className="hero-index">01 — 04</span>
       </section>
       <section className="section featured-section">
@@ -791,7 +792,5 @@ function PropertyTable({ properties, onEdit, onDelete, onStatus, onDuplicate }: 
 }
 
 export default function App() {
-  const { pathname } = useLocation()
-  const isPublicPage = !pathname.startsWith('/admin')
-  return <><ScrollManager /><Routes><Route path="/" element={<HomePage />} /><Route path="/imoveis" element={<ResultsPage />} /><Route path="/imoveis/:id" element={<DetailPage />} /><Route path="/admin/*" element={<AdminPage />} /><Route path="*" element={<HomePage />} /></Routes>{isPublicPage && <InstagramButton className="instagram-floating-button" />}</>
+  return <><ScrollManager /><Routes><Route path="/" element={<HomePage />} /><Route path="/imoveis" element={<ResultsPage />} /><Route path="/imoveis/:id" element={<DetailPage />} /><Route path="/admin/*" element={<AdminPage />} /><Route path="*" element={<HomePage />} /></Routes></>
 }
