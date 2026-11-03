@@ -3,7 +3,7 @@ import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchPara
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Bath, BedDouble, Building2, Check,
   ChevronDown, ChevronLeft, ChevronRight, CircleUserRound, DoorOpen, Filter, Home, Instagram,
-  KeyRound, LayoutDashboard, LogOut, MapPin, Menu, Plus, Search, SlidersHorizontal,
+  KeyRound, LayoutDashboard, LogOut, MapPin, Menu, Plus, Search, SlidersHorizontal, Youtube,
   Square, Trash2, Upload, Users, X,
 } from 'lucide-react'
 import { deleteProperty, getAdminProperties, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveProperty, saveSiteSettings, saveTeamMember, updatePropertyStatus, updateTeamMember } from './lib/data'
@@ -20,9 +20,13 @@ const statusNames: Record<PropertyStatus, string> = {
 }
 const imageFallback = 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1400&q=85'
 const instagramUrl = 'https://www.instagram.com/rds.imoveis/'
+const youtubeUrl = 'https://www.youtube.com/@RDSIMOVEISimoveis'
 
-function InstagramButton({ className }: { className: string }) {
-  return <a className={className} href={instagramUrl} target="_blank" rel="noreferrer" aria-label="Acesse o Instagram da RDS Imóveis" title="Instagram da RDS Imóveis"><Instagram size={20} strokeWidth={1.8} /></a>
+function SocialLinks({ className }: { className: string }) {
+  return <div className={className}>
+    <a href={instagramUrl} target="_blank" rel="noreferrer" aria-label="Acesse o Instagram da RDS Imóveis" title="Instagram da RDS Imóveis"><Instagram size={20} strokeWidth={1.8} /></a>
+    <a href={youtubeUrl} target="_blank" rel="noreferrer" aria-label="Acesse o YouTube da RDS Imóveis" title="YouTube da RDS Imóveis"><Youtube size={20} strokeWidth={1.8} /></a>
+  </div>
 }
 
 function ScrollManager() {
@@ -54,7 +58,7 @@ function Header() {
       <Link to="/#sobre" onClick={() => setMenuOpen(false)}>Sobre</Link>
       <Link to="/#contato" onClick={() => setMenuOpen(false)}>Contato</Link>
       <Link className="admin-link" to="/admin">Área administrativa <ArrowUpRight size={14} /></Link>
-      <InstagramButton className="instagram-nav-button" />
+      <SocialLinks className="social-nav-links" />
     </nav>
   </header>
 }
@@ -794,5 +798,5 @@ function PropertyTable({ properties, onEdit, onDelete, onStatus, onDuplicate }: 
 export default function App() {
   const { pathname } = useLocation()
   const isPublicPage = !pathname.startsWith('/admin')
-  return <><ScrollManager /><Routes><Route path="/" element={<HomePage />} /><Route path="/imoveis" element={<ResultsPage />} /><Route path="/imoveis/:id" element={<DetailPage />} /><Route path="/admin/*" element={<AdminPage />} /><Route path="*" element={<HomePage />} /></Routes>{isPublicPage && <InstagramButton className="instagram-floating-button" />}</>
+  return <><ScrollManager /><Routes><Route path="/" element={<HomePage />} /><Route path="/imoveis" element={<ResultsPage />} /><Route path="/imoveis/:id" element={<DetailPage />} /><Route path="/admin/*" element={<AdminPage />} /><Route path="*" element={<HomePage />} /></Routes>{isPublicPage && <SocialLinks className="social-floating-links" />}</>
 }
