@@ -122,6 +122,14 @@ export interface SiteSettings {
   instagram_url: string
 }
 
+export interface PropertyInquiryInput {
+  propertyId: string
+  name: string
+  email: string
+  whatsapp: string
+  honeypot: string
+}
+
 export interface PropertyIntegration {
   id: string
   imovel_id: string

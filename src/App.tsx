@@ -3,10 +3,10 @@ import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchPara
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Bath, BedDouble, Building2, Check,
   ChevronDown, ChevronLeft, ChevronRight, CircleUserRound, DoorOpen, Filter, Home, Instagram,
-  KeyRound, LayoutDashboard, LogOut, MapPin, Menu, Plus, Search, SlidersHorizontal, Youtube,
+  KeyRound, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, SlidersHorizontal, Youtube,
   Square, Trash2, Upload, Users, X,
 } from 'lucide-react'
-import { deleteProperty, getAdminProperties, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveProperty, saveSiteSettings, saveTeamMember, updatePropertyStatus, updateTeamMember } from './lib/data'
+import { deleteProperty, getAdminProperties, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveProperty, saveSiteSettings, saveTeamMember, sendPropertyInquiry, updatePropertyStatus, updateTeamMember } from './lib/data'
 import { currency, numberValue, whatsappContactUrl, whatsappUrl, youtubeEmbed } from './lib/format'
 import { supabase } from './lib/supabase'
 import type { Captor, IntegrationPortal, Property, PropertyImage, PropertyInput, PropertyLink, PropertyStatus } from './types'
@@ -80,6 +80,29 @@ function Footer() {
 function Photo({ property, className = '' }: { property: Property; className?: string }) {
   const photo = property.property_images?.find((image) => image.is_cover)?.url ?? property.property_images?.[0]?.url ?? imageFallback
   return <img className={className} src={photo} alt={property.title} loading="lazy" onError={(event) => { event.currentTarget.src = imageFallback }} />
+}
+
+function propertyInquiryWhatsAppUrl(phone: string, property: Property, customer: { name: string; email: string; whatsapp: string }) {
+  const digits = phone.replace(/\D/g, '')
+  const normalized = digits.startsWith('55') ? digits : `55${digits}`
+  const rows = [
+    `Olá! Tenho interesse no imóvel ${property.code} - ${property.title}.`,
+    `Meu nome: ${customer.name}`,
+    `Meu WhatsApp: ${customer.whatsapp}`,
+    `Meu e-mail: ${customer.email}`,
+    `Tipo/finalidade: ${property.type} · ${property.purpose === 'VENDA' ? 'Venda' : property.purpose === 'ALUGUEL' ? 'Aluguel' : 'Venda e aluguel'}`,
+    `Localização: ${property.neighborhood}, ${property.city} - ${property.state}`,
+    `Venda: ${currency(property.sale_price)} · Aluguel: ${property.rent_price != null ? `${currency(property.rent_price)}/mês` : '—'}`,
+    `Condomínio: ${property.condo_fee != null ? `${currency(property.condo_fee)}/mês` : '—'} · IPTU: ${property.property_tax != null ? `${currency(property.property_tax)} ${property.tax_frequency === 'ANUAL' ? '/ano' : '/mês'}` : '—'}`,
+    `Áreas: total ${property.total_area ?? '—'} m² · privativa ${property.private_area ?? '—'} m²`,
+    `Quartos: ${property.bedrooms} · Suítes: ${property.suites} · Banheiros: ${property.bathrooms} · Vagas: ${property.parking_spaces}`,
+    `Andar: ${property.floor ?? '—'} · Ano de construção: ${property.construction_year ?? '—'}`,
+    `Mobiliado: ${property.furnished ? 'Sim' : 'Não'} · Financiamento: ${property.financing ? 'Aceita' : 'Não'} · Permuta: ${property.trade ? 'Aceita' : 'Não'}`,
+    `Diferenciais: ${property.features.length ? property.features.join(', ') : '—'}`,
+    `Descrição: ${property.description || '—'}`,
+    `Link do imóvel: ${window.location.origin}/imoveis/${property.id}`,
+  ]
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(rows.join('\n'))}`
 }
 
 function PropertyCard({ property }: { property: Property }) {
@@ -339,7 +362,19 @@ function DetailPage() {
   const [settings, setSettings] = useState({ company_name: 'RDS Imóveis', whatsapp: '', contact_email: '', instagram_url: '' })
   const [photo, setPhoto] = useState(0)
   const [lightbox, setLightbox] = useState(false)
+  const [inquiry, setInquiry] = useState({ name: '', email: '', whatsapp: '' })
+  const [inquiryConsent, setInquiryConsent] = useState(false)
+  const [inquirySending, setInquirySending] = useState(false)
+  const [inquirySent, setInquirySent] = useState(false)
+  const [inquiryError, setInquiryError] = useState('')
+  const inquiryRequestId = useRef(0)
   useEffect(() => {
+    inquiryRequestId.current += 1
+    setInquiry({ name: '', email: '', whatsapp: '' })
+    setInquiryConsent(false)
+    setInquirySending(false)
+    setInquirySent(false)
+    setInquiryError('')
     let active = true
     getPublicProperties().then((properties) => {
       const found = properties.find((candidate) => candidate.id === id || candidate.code === id)
@@ -351,7 +386,25 @@ function DetailPage() {
   if (loading) return <><Header /><Loading message="Carregando imóvel" /></>
   if (error || !property) return <><Header /><div className="empty-state detail-empty"><Home size={30} /><h2>Imóvel não encontrado</h2><p>{error || 'Este imóvel não está disponível ou não existe.'}</p><Link className="button button-outline" to="/imoveis">Voltar aos imóveis</Link></div><Footer /></>
   const images = property.property_images?.length ? property.property_images : [{ id: 'fallback', property_id: id, url: imageFallback, display_order: 0, is_cover: true }]
+  const currentProperty = property
   const contactPhone = property.broker?.whatsapp ?? property.broker?.phone ?? property.captor?.whatsapp ?? property.captor?.phone ?? settings.whatsapp
+  const inquiryWhatsAppUrl = contactPhone && inquirySent ? propertyInquiryWhatsAppUrl(contactPhone, property, inquiry) : ''
+  async function submitInquiry(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setInquirySending(true)
+    setInquiryError('')
+    const requestId = ++inquiryRequestId.current
+    try {
+      const form = event.currentTarget
+      const website = new FormData(form).get('website')?.toString() ?? ''
+      await sendPropertyInquiry({ propertyId: currentProperty.id, ...inquiry, honeypot: website })
+      if (inquiryRequestId.current === requestId) setInquirySent(true)
+    } catch (reason) {
+      if (inquiryRequestId.current === requestId) setInquiryError(reason instanceof Error ? reason.message : 'Não foi possível enviar sua solicitação.')
+    } finally {
+      if (inquiryRequestId.current === requestId) setInquirySending(false)
+    }
+  }
   function shiftPhoto(direction: number) { setPhoto((current) => (current + direction + images.length) % images.length) }
   return <><Header /><main className="detail-page">
     <div className="detail-topline"><Link to="/imoveis"><ArrowLeft size={15} /> Voltar aos imóveis</Link><span>{property.code}</span></div>
@@ -389,6 +442,18 @@ function DetailPage() {
         <span className="property-code-note">Código do imóvel: {property.code}</span>
       </aside>
     </div>
+    <section className="property-inquiry" aria-labelledby="property-inquiry-title">
+      <div className="property-inquiry-copy"><span className="eyebrow gold">FALE COM A RDS</span><h2 id="property-inquiry-title">Gostou deste imóvel?</h2><p>Deixe seus dados para recebermos seu interesse. Enviaremos os detalhes do imóvel e suas informações para nossa equipe.</p></div>
+      {inquirySent ? <div className="inquiry-result success-alert" role="status"><strong>Solicitação enviada!</strong><span>Enviamos os dados do imóvel e seu contato para a equipe RDS.</span>{inquiryWhatsAppUrl ? <a className="button button-dark full-button" href={inquiryWhatsAppUrl} target="_blank" rel="noreferrer"><MessageCircle size={17} /> Enviar também pelo WhatsApp</a> : <span>O WhatsApp do atendimento não está configurado para este imóvel.</span>}</div> : <form className="property-inquiry-form" onSubmit={(event) => void submitInquiry(event)}>
+        {inquiryError && <div className="admin-alert error-alert" role="alert">{inquiryError}</div>}
+        <label className="inquiry-honeypot" aria-hidden="true">Não preencher<input name="website" tabIndex={-1} autoComplete="off" /></label>
+        <label className="admin-field">Seu nome<input required maxLength={120} autoComplete="name" value={inquiry.name} onChange={(event) => setInquiry((current) => ({ ...current, name: event.target.value }))} placeholder="Nome completo" /></label>
+        <label className="admin-field">Seu WhatsApp<input required type="tel" maxLength={25} autoComplete="tel" value={inquiry.whatsapp} onChange={(event) => setInquiry((current) => ({ ...current, whatsapp: event.target.value }))} placeholder="(61) 99999-9999" /></label>
+        <label className="admin-field inquiry-email-field">Seu e-mail<input required type="email" maxLength={254} autoComplete="email" value={inquiry.email} onChange={(event) => setInquiry((current) => ({ ...current, email: event.target.value }))} placeholder="voce@email.com" /></label>
+        <label className="inquiry-consent"><input required type="checkbox" checked={inquiryConsent} onChange={(event) => setInquiryConsent(event.target.checked)} /><span>Autorizo o uso destes dados pela RDS Imóveis e pelo responsável por este anúncio para tratar do meu interesse neste imóvel.</span></label>
+        <button className="button button-dark full-button" disabled={inquirySending}>{inquirySending ? 'Enviando solicitação...' : 'Enviar meu interesse'} <ArrowRight size={17} /></button>
+      </form>}
+    </section>
     {lightbox && <div className="lightbox" role="dialog" aria-modal="true" aria-label="Galeria de fotos"><button className="lightbox-close" onClick={() => setLightbox(false)} aria-label="Fechar"><X /></button><button className="lightbox-arrow prev" onClick={() => shiftPhoto(-1)} aria-label="Foto anterior"><ChevronLeft /></button><img src={images[photo].url} alt={property.title} /><button className="lightbox-arrow next" onClick={() => shiftPhoto(1)} aria-label="Próxima foto"><ChevronRight /></button><span>{photo + 1} / {images.length}</span></div>}
   </main><Footer /></>
 }

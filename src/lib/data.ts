@@ -1,6 +1,6 @@
 import { demoCaptors, demoProperties } from './demo'
 import { isSupabaseConfigured, supabase } from './supabase'
-import type { Captor, IntegrationPortal, Property, PropertyImage, PropertyInput, PropertyLink, PropertyVideo, SiteSettings } from '../types'
+import type { Captor, IntegrationPortal, Property, PropertyImage, PropertyInput, PropertyInquiryInput, PropertyLink, PropertyVideo, SiteSettings } from '../types'
 
 function requireSupabase() {
   if (!supabase) throw new Error('Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para acessar o banco de dados.')
@@ -91,6 +91,23 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   const { data, error } = await supabase.from('public_site_settings').select('*').eq('id', true).maybeSingle()
   if (error) throw error
   return data ?? defaults
+}
+
+export async function sendPropertyInquiry(inquiry: PropertyInquiryInput): Promise<void> {
+  const client = requireSupabase()
+  const { error } = await client.functions.invoke('property-inquiry', { body: inquiry })
+  if (!error) return
+
+  if ('context' in error && error.context instanceof Response) {
+    let body: unknown = null
+    try {
+      body = await error.context.json()
+    } catch {
+      body = null
+    }
+    if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') throw new Error(body.error)
+  }
+  throw new Error('Não foi possível enviar sua solicitação. Tente novamente em alguns instantes.')
 }
 
 export async function saveSiteSettings(settings: Omit<SiteSettings, 'id'>): Promise<void> {

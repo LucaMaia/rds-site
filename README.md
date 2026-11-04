@@ -44,6 +44,19 @@ O acesso administrativo usa Supabase Auth; nenhum cadastro público de usuários
 - Cadastro e edição de imóveis, gestão de status com histórico, fotos no Supabase Storage, vídeos YouTube e links externos com controle de visibilidade.
 - Captadores e corretores são cadastros independentes.
 - Migração cria as tabelas, índices, views públicas, políticas RLS, bucket de imagens e os dois imóveis fictícios com fotografias ilustrativas.
+- Formulário de interesse no detalhe do imóvel: envia os dados do cliente e os detalhes do anúncio por e-mail; após a confirmação, permite abrir o WhatsApp do atendimento com a mensagem preenchida.
+
+## Contato por e-mail e WhatsApp
+
+O formulário público usa a Supabase Edge Function `property-inquiry`. O destinatário do e-mail é o contato configurado no painel; se estiver vazio, usa `lucamaia2007@hotmail.com`. O WhatsApp é aberto com a mensagem pronta para o corretor atribuído (ou contato disponível), mas o cliente precisa confirmar o envio no próprio WhatsApp.
+
+Para ativar:
+
+1. Aplique [supabase/migrations/20261103214000_property_inquiry_rate_limits.sql](./supabase/migrations/20261103214000_property_inquiry_rate_limits.sql) no Supabase.
+2. No Supabase, configure os secrets `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (remetente de um domínio verificado no Resend) e `ALLOWED_ORIGINS` (origens separadas por vírgula; inclua `https://rds-site.vercel.app` e a origem local usada no desenvolvimento).
+3. Faça deploy com `supabase functions deploy property-inquiry`. As variáveis internas `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` são lidas somente pela Edge Function.
+
+A função limita envios por IP, valida os dados e aceita chamadas somente das origens configuradas. Nunca configure a chave do Resend ou a `service_role` em variáveis `VITE_*` ou no navegador. A entrega real depende de uma chave válida do Resend e de um remetente verificado.
 
 ## Integrações XML com portais
 
