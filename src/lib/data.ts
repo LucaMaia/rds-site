@@ -136,6 +136,13 @@ export async function updateTeamMember(kind: 'captor' | 'broker', id: string, ac
   if (error) throw error
 }
 
+export async function deleteTeamMember(kind: 'captor' | 'broker', id: string): Promise<void> {
+  const client = requireSupabase()
+  const table = kind === 'captor' ? 'captors' : 'brokers'
+  const { error } = await client.from(table).delete().eq('id', id)
+  if (error) throw error
+}
+
 export async function saveTeamMember(kind: 'captor' | 'broker', member: Partial<Captor> & Pick<Captor, 'name'>, id?: string, photo?: File): Promise<void> {
   const client = requireSupabase()
   let uploadedPath: string | null = null

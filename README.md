@@ -44,7 +44,7 @@ O acesso administrativo usa Supabase Auth; nenhum cadastro público de usuários
 - Apenas imóveis publicados são retornados nas consultas públicas. A view pública omite endereço, número, complemento e CEP.
 - Painel protegido para métricas, relatórios com filtros, imóveis, equipe e canais de contato.
 - Cadastro e edição de imóveis, gestão de status com histórico, fotos no Supabase Storage, vídeos YouTube e links externos com controle de visibilidade.
-- Captadores e corretores são cadastros independentes.
+- Captadores e corretores são cadastros independentes; o painel permite criar, editar, ativar/desativar e excluir integrantes. Ao excluir, os imóveis relacionados permanecem e ficam sem o responsável atribuído.
 - Migração cria as tabelas, índices, views públicas, políticas RLS, bucket de imagens e os dois imóveis fictícios com fotografias ilustrativas.
 - Formulário de interesse no detalhe do imóvel: envia os dados do cliente e os detalhes do anúncio por e-mail; após a confirmação, permite abrir o WhatsApp da equipe RDS (+55 61 99944 9411) com a mensagem preenchida.
 

@@ -428,6 +428,7 @@ h1,h2,h3,p{margin-top:0}
 .team-row:last-child{border-bottom:0}
 .team-row.selected{background:#fbfaf7}
 .team-select{flex:1;min-width:0;display:flex;align-items:center;gap:10px;text-align:left;border:0;background:transparent;padding:0;color:inherit}
+.team-actions{display:flex;align-items:center;gap:5px}
 .member-status{border:1px solid #e6e3dc;background:white;color:#777870;padding:6px 8px;font-size:8px}
 .member-status:hover{border-color:#b49a6c;color:#806a45}
 .team-row .agent-avatar{width:37px;height:37px}
@@ -470,7 +471,7 @@ h1,h2,h3,p{margin-top:0}
 .month-bar>div span{width:100%;background:#c9b181;min-height:3px}
 .month-bar small{font-size:8px;color:#898a83;text-transform:capitalize}
 .member-form{padding:17px;display:flex;flex-direction:column;gap:12px}
-.member-form .button{align-self:flex-start;margin-top:3px}
+.member-form-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:3px}
 .member-photo-upload{display:flex;align-items:center;gap:11px;padding:10px;border:1px dashed #dedbd2;border-radius:var(--radius-small);cursor:pointer}
 .member-photo-upload .agent-avatar{width:46px;height:46px}
 .member-photo-upload>span:nth-child(2){display:flex;flex-direction:column;gap:4px;min-width:0}

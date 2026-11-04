@@ -3,10 +3,10 @@ import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchPara
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Bath, BedDouble, Building2, Check,
   ChevronDown, ChevronLeft, ChevronRight, CircleUserRound, DoorOpen, Filter, Home, Instagram,
-  KeyRound, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, SlidersHorizontal, Youtube,
+  KeyRound, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Youtube,
   Square, Trash2, Upload, Users, X,
 } from 'lucide-react'
-import { deleteProperty, getAdminProperties, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveProperty, saveSiteSettings, saveTeamMember, sendPropertyInquiry, updatePropertyStatus, updateTeamMember } from './lib/data'
+import { deleteProperty, deleteTeamMember, getAdminProperties, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveProperty, saveSiteSettings, saveTeamMember, sendPropertyInquiry, updatePropertyStatus, updateTeamMember } from './lib/data'
 import { currency, numberValue, whatsappContactUrl, whatsappUrl, youtubeEmbed } from './lib/format'
 import { supabase } from './lib/supabase'
 import type { Captor, IntegrationPortal, Property, PropertyImage, PropertyInput, PropertyLink, PropertyStatus } from './types'
@@ -742,6 +742,7 @@ function AdminPage() {
   const [memberPhone, setMemberPhone] = useState('')
   const [memberWhatsapp, setMemberWhatsapp] = useState('')
   const [memberEmail, setMemberEmail] = useState('')
+  const [memberEditingId, setMemberEditingId] = useState<string | null>(null)
   const [memberPhoto, setMemberPhoto] = useState<File | null>(null)
   const [memberPhotoPreview, setMemberPhotoPreview] = useState('')
   const [selectedMemberId, setSelectedMemberId] = useState('')
@@ -885,11 +886,28 @@ function AdminPage() {
     setMemberError(''); setMemberSuccess('')
     try {
       const payload = { name: memberName.trim(), phone: memberPhone || null, whatsapp: memberWhatsapp || null, email: memberEmail || null }
-      await saveTeamMember(memberKind, payload, undefined, memberPhoto ?? undefined)
-      setMemberName(''); setMemberPhone(''); setMemberWhatsapp(''); setMemberEmail(''); setMemberPhoto(null)
-      setMemberSuccess('Integrante cadastrado.')
+      await saveTeamMember(memberKind, payload, memberEditingId ?? undefined, memberPhoto ?? undefined)
+      setMemberName(''); setMemberPhone(''); setMemberWhatsapp(''); setMemberEmail(''); setMemberPhoto(null); setMemberEditingId(null)
+      setMemberSuccess(memberEditingId ? 'Informações do integrante atualizadas.' : 'Integrante cadastrado.')
       await refreshData()
     } catch (reason) { setMemberError(reason instanceof Error ? reason.message : 'Não foi possível cadastrar o integrante.') }
+  }
+  function editMember(member: Captor) {
+    setMemberEditingId(member.id)
+    setMemberKind(member.name.includes('· corretor') ? 'broker' : 'captor')
+    setMemberName(member.name.replace(' · corretor', ''))
+    setMemberPhone(member.phone ?? '')
+    setMemberWhatsapp(member.whatsapp ?? '')
+    setMemberEmail(member.email ?? '')
+    setMemberPhoto(null)
+    setSelectedMemberId(member.id)
+    setMemberError('')
+    setMemberSuccess('')
+  }
+  function cancelMemberEdit() {
+    setMemberEditingId(null)
+    setMemberName(''); setMemberPhone(''); setMemberWhatsapp(''); setMemberEmail(''); setMemberPhoto(null)
+    setMemberError(''); setMemberSuccess('')
   }
   function chooseMemberPhoto(event: React.ChangeEvent<HTMLInputElement>) {
     const photo = event.target.files?.[0] ?? null
@@ -913,6 +931,23 @@ function AdminPage() {
       await updateTeamMember(isBroker ? 'broker' : 'captor', member.id, !member.active)
       await refreshData()
     } catch (reason) { setDataError(reason instanceof Error ? reason.message : 'Não foi possível atualizar o integrante.') }
+  }
+  async function removeMember(member: Captor) {
+    const isBroker = member.name.includes('· corretor')
+    const associatedCount = properties.filter((property) => isBroker ? property.broker_id === member.id : property.captor_id === member.id).length
+    const displayName = member.name.replace(' · corretor', '')
+    const confirmation = associatedCount
+      ? `Excluir ${displayName}? ${associatedCount} imóvel(is) associado(s) deixarão de ter este integrante atribuído. Os imóveis não serão excluídos. Esta ação não pode ser desfeita.`
+      : `Excluir ${displayName}? Esta ação não pode ser desfeita.`
+    if (!window.confirm(confirmation)) return
+    try {
+      await deleteTeamMember(isBroker ? 'broker' : 'captor', member.id)
+      if (selectedMemberId === member.id) setSelectedMemberId('')
+      if (memberEditingId === member.id) cancelMemberEdit()
+      setMemberSuccess('Integrante excluído.')
+      setMemberError('')
+      await refreshData()
+    } catch (reason) { setDataError(reason instanceof Error ? reason.message : 'Não foi possível excluir o integrante.') }
   }
   function selectMember(member: Captor) {
     setSelectedMemberId(member.id)
@@ -999,7 +1034,54 @@ function AdminPage() {
         </section>}
         {view === 'properties' && <section><div className="admin-page-heading"><div><span className="eyebrow gold">CARTEIRA IMOBILIÁRIA</span><h1>Todos os imóveis</h1><p>Gerencie, atualize e acompanhe seus anúncios.</p></div><button className="button button-dark" onClick={() => changeView('editor')}><Plus size={16} /> Cadastrar imóvel</button></div><div className="admin-panel listing-panel"><div className="admin-filters"><label className="admin-search"><Search size={16} /><input value={filter.query} onChange={(event) => setFilter((current) => ({ ...current, query: event.target.value }))} placeholder="Buscar por código, título, local ou captador" /></label><select value={filter.status} onChange={(event) => setFilter((current) => ({ ...current, status: event.target.value }))}><option value="">Todos os status</option>{statuses.map((status) => <option key={status} value={status}>{statusNames[status]}</option>)}</select><select value={filter.type} onChange={(event) => setFilter((current) => ({ ...current, type: event.target.value }))}><option value="">Todos os tipos</option>{propertyTypes.map((type) => <option key={type}>{type}</option>)}</select><select value={filter.captor} onChange={(event) => setFilter((current) => ({ ...current, captor: event.target.value }))}><option value="">Todos os captadores</option>{captors.map((captor) => <option key={captor.id} value={captor.id}>{captor.name}</option>)}</select></div><div className="listing-count">{filtered.length} imóveis encontrados</div><PropertyTable properties={filtered} onEdit={(item) => changeView('editor', item.id)} onDelete={(item) => void removeProperty(item)} onStatus={(item, status) => void changeStatus(item, status)} onDuplicate={(item) => void duplicateProperty(item)} /></div></section>}
         {editorOpened && (!editorPropertyId || selectedProperty) && <div hidden={view !== 'editor'}><PropertyEditor key={`${user.id}:${editorPropertyId ?? 'new-property'}`} userId={user.id} property={selectedProperty} captors={captors} brokers={brokers} onCancel={cancelEditor} onSaved={() => { void refreshData(); closeEditor() }} /></div>}
-        {view === 'team' && <section><div className="admin-page-heading"><div><span className="eyebrow gold">TIME RDS</span><h1>Captadores e corretores</h1><p>Gerencie os integrantes responsáveis por captar e atender os imóveis.</p></div></div><div className="team-columns"><section className="admin-panel"><div className="panel-heading"><div><h2>Integrantes cadastrados</h2><p>{team.length} pessoas no time</p></div></div><div className="team-list">{team.map((member) => { const broker = member.name.includes('· corretor'); const baseName = member.name.replace(' · corretor', ''); const associated = properties.filter((property) => broker ? property.broker_id === member.id : property.captor_id === member.id); return <div key={member.id} className={`team-row ${selectedMemberId === member.id ? 'selected' : ''}`}>        <button className="team-select" onClick={() => selectMember(member)}><span className="agent-avatar">{member.photo_url ? <img src={member.photo_url} alt="" /> : <CircleUserRound size={23} />}</span><span className="team-name"><strong>{baseName}</strong><span>{broker ? 'Corretor de atendimento' : 'Captador'} · {member.active ? 'Ativo' : 'Inativo'}</span></span><span className="team-count">{associated.length} imóveis</span></button><button className="member-status" onClick={() => void toggleMember(member)}>{member.active ? 'Desativar' : 'Ativar'}</button></div> })}{!team.length && <p className="muted-empty">Nenhum integrante cadastrado.</p>}</div>{selectedMember && <div className="member-profile"><span className="eyebrow gold">PERFIL DO INTEGRANTE</span><div className="member-profile-heading"><span className="agent-avatar">{selectedMember.photo_url ? <img src={selectedMember.photo_url} alt="" /> : <CircleUserRound size={23} />}</span><h3>{selectedMember.name.replace(' · corretor', '')}</h3></div><div className="member-stats">{statuses.map((status) => <span key={status}>{statusNames[status]} <strong>{properties.filter((property) => (selectedMember.name.includes('· corretor') ? property.broker_id : property.captor_id) === selectedMember.id && property.status === status).length}</strong></span>)}</div><div className="member-property-list">{properties.filter((property) => (selectedMember.name.includes('· corretor') ? property.broker_id : property.captor_id) === selectedMember.id).map((property) => <button key={property.id} onClick={() => changeView('editor', property.id)}>{property.code} · {property.title}<span>{statusNames[property.status]}</span></button>)}</div></div>}</section><section className="admin-panel add-member-panel"><div className="panel-heading"><div><h2>Adicionar integrante</h2><p>Cadastre captadores ou corretores de atendimento.</p></div></div>{memberError && <div className="admin-alert error-alert">{memberError}</div>}{memberSuccess && <div className="admin-alert success-alert">{memberSuccess}</div>}<form className="member-form" onSubmit={(event) => void addMember(event)}><label className="admin-field">Função<select value={memberKind} onChange={(event) => setMemberKind(event.target.value as 'captor' | 'broker')}><option value="captor">Captador</option><option value="broker">Corretor de atendimento</option></select></label><label className="admin-field">Nome<input required value={memberName} onChange={(event) => setMemberName(event.target.value)} placeholder="Nome completo" /></label><label className="admin-field">Telefone<input value={memberPhone} onChange={(event) => setMemberPhone(event.target.value)} placeholder="(61) 99999-9999" /></label><label className="admin-field">WhatsApp<input value={memberWhatsapp} onChange={(event) => setMemberWhatsapp(event.target.value)} placeholder="(61) 99999-9999" /></label><label className="admin-field">E-mail<input type="email" value={memberEmail} onChange={(event) => setMemberEmail(event.target.value)} placeholder="nome@rdsimoveis.com.br" /></label><label className="member-photo-upload"><span className="agent-avatar">{memberPhotoPreview ? <img src={memberPhotoPreview} alt="Prévia da foto selecionada" /> : <CircleUserRound size={23} />}</span><span><strong>{memberPhoto ? memberPhoto.name : 'Adicionar foto'}</strong><small>JPG, PNG ou WEBP · até 12 MB</small></span><input key={memberPhoto ? 'photo-selected' : 'photo-empty'} type="file" accept="image/jpeg,image/png,image/webp" onChange={chooseMemberPhoto} /></label><button className="button button-dark"><Plus size={16} /> Adicionar ao time</button></form></section></div></section>}
+        {view === 'team' && <section>
+          <div className="admin-page-heading"><div><span className="eyebrow gold">TIME RDS</span><h1>Captadores e corretores</h1><p>Gerencie os integrantes responsáveis por captar e atender os imóveis.</p></div></div>
+          <div className="team-columns">
+            <section className="admin-panel">
+              <div className="panel-heading"><div><h2>Integrantes cadastrados</h2><p>{team.length} pessoas no time</p></div></div>
+              <div className="team-list">
+                {team.map((member) => {
+                  const broker = member.name.includes('· corretor')
+                  const baseName = member.name.replace(' · corretor', '')
+                  const associated = properties.filter((property) => broker ? property.broker_id === member.id : property.captor_id === member.id)
+                  return <div key={member.id} className={`team-row ${selectedMemberId === member.id ? 'selected' : ''}`}>
+                    <button className="team-select" onClick={() => selectMember(member)}>
+                      <span className="agent-avatar">{member.photo_url ? <img src={member.photo_url} alt="" /> : <CircleUserRound size={23} />}</span>
+                      <span className="team-name"><strong>{baseName}</strong><span>{broker ? 'Corretor de atendimento' : 'Captador'} · {member.active ? 'Ativo' : 'Inativo'}</span></span>
+                      <span className="team-count">{associated.length} imóveis</span>
+                    </button>
+                    <div className="team-actions">
+                      <button className="member-status" onClick={() => void toggleMember(member)}>{member.active ? 'Desativar' : 'Ativar'}</button>
+                      <button className="icon-button" onClick={() => editMember(member)} aria-label={`Editar ${baseName}`} title="Editar integrante"><Pencil size={15} /></button>
+                      <button className="icon-button danger" onClick={() => void removeMember(member)} aria-label={`Excluir ${baseName}`} title="Excluir integrante"><Trash2 size={15} /></button>
+                    </div>
+                  </div>
+                })}
+                {!team.length && <p className="muted-empty">Nenhum integrante cadastrado.</p>}
+              </div>
+              {selectedMember && <div className="member-profile">
+                <span className="eyebrow gold">PERFIL DO INTEGRANTE</span>
+                <div className="member-profile-heading"><span className="agent-avatar">{selectedMember.photo_url ? <img src={selectedMember.photo_url} alt="" /> : <CircleUserRound size={23} />}</span><h3>{selectedMember.name.replace(' · corretor', '')}</h3></div>
+                <div className="member-stats">{statuses.map((status) => <span key={status}>{statusNames[status]} <strong>{properties.filter((property) => (selectedMember.name.includes('· corretor') ? property.broker_id : property.captor_id) === selectedMember.id && property.status === status).length}</strong></span>)}</div>
+                <div className="member-property-list">{properties.filter((property) => (selectedMember.name.includes('· corretor') ? property.broker_id : property.captor_id) === selectedMember.id).map((property) => <button key={property.id} onClick={() => changeView('editor', property.id)}>{property.code} · {property.title}<span>{statusNames[property.status]}</span></button>)}</div>
+              </div>}
+            </section>
+            <section className="admin-panel add-member-panel">
+              <div className="panel-heading"><div><h2>{memberEditingId ? 'Editar integrante' : 'Adicionar integrante'}</h2><p>{memberEditingId ? 'Atualize os dados do integrante selecionado.' : 'Cadastre captadores ou corretores de atendimento.'}</p></div></div>
+              {memberError && <div className="admin-alert error-alert">{memberError}</div>}
+              {memberSuccess && <div className="admin-alert success-alert">{memberSuccess}</div>}
+              <form className="member-form" onSubmit={(event) => void addMember(event)}>
+                <label className="admin-field">Função<select value={memberKind} disabled={Boolean(memberEditingId)} onChange={(event) => setMemberKind(event.target.value as 'captor' | 'broker')}><option value="captor">Captador</option><option value="broker">Corretor de atendimento</option></select></label>
+                <label className="admin-field">Nome<input required value={memberName} onChange={(event) => setMemberName(event.target.value)} placeholder="Nome completo" /></label>
+                <label className="admin-field">Telefone<input value={memberPhone} onChange={(event) => setMemberPhone(event.target.value)} placeholder="(61) 99999-9999" /></label>
+                <label className="admin-field">WhatsApp<input value={memberWhatsapp} onChange={(event) => setMemberWhatsapp(event.target.value)} placeholder="(61) 99999-9999" /></label>
+                <label className="admin-field">E-mail<input type="email" value={memberEmail} onChange={(event) => setMemberEmail(event.target.value)} placeholder="nome@rdsimoveis.com.br" /></label>
+                <label className="member-photo-upload"><span className="agent-avatar">{memberPhotoPreview ? <img src={memberPhotoPreview} alt="Prévia da foto selecionada" /> : memberEditingId && team.find((member) => member.id === memberEditingId)?.photo_url ? <img src={team.find((member) => member.id === memberEditingId)?.photo_url ?? ''} alt="Foto atual do integrante" /> : <CircleUserRound size={23} />}</span><span><strong>{memberPhoto ? memberPhoto.name : memberEditingId ? 'Manter ou trocar foto' : 'Adicionar foto'}</strong><small>JPG, PNG ou WEBP · até 12 MB</small></span><input key={memberPhoto ? 'photo-selected' : 'photo-empty'} type="file" accept="image/jpeg,image/png,image/webp" onChange={chooseMemberPhoto} /></label>
+                <div className="member-form-actions"><button className="button button-dark">{memberEditingId ? <Check size={16} /> : <Plus size={16} />}{memberEditingId ? 'Salvar alterações' : 'Adicionar ao time'}</button>{memberEditingId && <button type="button" className="button button-outline" onClick={cancelMemberEdit}>Cancelar edição</button>}</div>
+              </form>
+            </section>
+          </div>
+        </section>}
         {view === 'reports' && <section><div className="admin-page-heading"><div><span className="eyebrow gold">ANÁLISE DA CARTEIRA</span><h1>Relatórios</h1><p>Explore seus imóveis por período, status, tipo, finalidade e captador.</p></div></div><div className="admin-panel report-filter-panel"><div className="admin-filters"><select value={reportFilters.captor} onChange={(event) => setReportFilters((current) => ({ ...current, captor: event.target.value }))}><option value="">Todos os captadores</option>{captors.map((captor) => <option key={captor.id} value={captor.id}>{captor.name}</option>)}</select><select value={reportFilters.status} onChange={(event) => setReportFilters((current) => ({ ...current, status: event.target.value }))}><option value="">Todos os status</option>{statuses.map((status) => <option key={status} value={status}>{statusNames[status]}</option>)}</select><select value={reportFilters.type} onChange={(event) => setReportFilters((current) => ({ ...current, type: event.target.value }))}><option value="">Todos os tipos</option>{propertyTypes.map((type) => <option key={type}>{type}</option>)}</select><select value={reportFilters.purpose} onChange={(event) => setReportFilters((current) => ({ ...current, purpose: event.target.value }))}><option value="">Todas as finalidades</option><option value="VENDA">Venda</option><option value="ALUGUEL">Aluguel</option><option value="AMBOS">Ambos</option></select><input aria-label="Região" placeholder="Região" value={reportFilters.region} onChange={(event) => setReportFilters((current) => ({ ...current, region: event.target.value }))} /><label className="report-date">De<input type="date" value={reportFilters.from} onChange={(event) => setReportFilters((current) => ({ ...current, from: event.target.value }))} /></label><label className="report-date">Até<input type="date" value={reportFilters.to} onChange={(event) => setReportFilters((current) => ({ ...current, to: event.target.value }))} /></label><button className="clear-button" onClick={() => setReportFilters({ status: '', type: '', purpose: '', captor: '', region: '', from: '', to: '' })}>Limpar</button></div></div><div className="metric-grid report-metrics"><Metric label="Imóveis no recorte" value={reportProperties.length} icon={<Building2 />} /><Metric label="Publicados" value={reportProperties.filter((item) => item.status === 'PUBLICADO').length} icon={<Check />} tone="green" /><Metric label="Valor médio de venda" value={currency(Math.round(reportProperties.reduce((sum, item) => sum + (item.sale_price ?? 0), 0) / Math.max(1, reportProperties.filter((item) => item.sale_price != null).length)))} icon={<Square />} /><Metric label="Área média (m²)" value={Math.round(reportProperties.reduce((sum, item) => sum + (item.total_area ?? 0), 0) / Math.max(1, reportProperties.filter((item) => item.total_area != null).length))} icon={<Home />} /></div><div className="dashboard-charts"><section className="admin-panel"><div className="panel-heading"><div><h2>Imóveis por captador</h2><p>Distribuição no período e filtros selecionados</p></div></div><div className="status-chart">{captorCounts.map(([name, count]) => <div className="status-bar-row" key={name}><span>{name}</span><div className="bar-track"><div className="bar-fill" style={{ width: `${count / reportMax * 100}%` }} /></div><strong>{count}</strong></div>)}{!captorCounts.length && <p className="muted-empty">Nenhum imóvel corresponde aos filtros.</p>}</div></section><section className="admin-panel"><div className="panel-heading"><div><h2>Resultados filtrados</h2><p>Imóveis incluídos neste relatório</p></div></div><PropertyTable properties={reportProperties.slice(0, 12)} onEdit={(item) => changeView('editor', item.id)} onDelete={(item) => void removeProperty(item)} onStatus={(item, status) => void changeStatus(item, status)} onDuplicate={(item) => void duplicateProperty(item)} /></section></div></section>}
         {view === 'settings' && <section><div className="admin-page-heading"><div><span className="eyebrow gold">PRESENÇA DA IMOBILIÁRIA</span><h1>Configurações</h1><p>Essas informações aparecem nos contatos da área pública.</p></div></div><form className="admin-panel settings-form" onSubmit={(event) => void submitSettings(event)}><div className="panel-heading"><div><h2>Informações de contato</h2><p>Use canais oficiais da imobiliária para receber as solicitações.</p></div></div><div className="settings-fields"><label className="admin-field">Nome da imobiliária<input required value={settings.company_name} onChange={(event) => setSettings((current) => ({ ...current, company_name: event.target.value }))} /></label><label className="admin-field">WhatsApp<input value={settings.whatsapp} onChange={(event) => setSettings((current) => ({ ...current, whatsapp: event.target.value }))} placeholder="5561999999999" /></label><label className="admin-field">E-mail de contato<input type="email" value={settings.contact_email} onChange={(event) => setSettings((current) => ({ ...current, contact_email: event.target.value }))} placeholder="contato@empresa.com.br" /></label><label className="admin-field">Instagram (URL)<input type="url" value={settings.instagram_url} onChange={(event) => setSettings((current) => ({ ...current, instagram_url: event.target.value }))} placeholder="https://instagram.com/..." /></label></div>{settingsError && <div className="admin-alert error-alert">{settingsError}</div>}{settingsSuccess && <div className="admin-alert success-alert">{settingsSuccess}</div>}<div className="settings-submit"><button className="button button-dark">Salvar configurações</button></div></form></section>}
       </div>
