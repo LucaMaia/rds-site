@@ -143,7 +143,7 @@ export async function deleteTeamMember(kind: 'captor' | 'broker', id: string): P
   if (error) throw error
 }
 
-export async function saveTeamMember(kind: 'captor' | 'broker', member: Partial<Captor> & Pick<Captor, 'name'>, id?: string, photo?: File): Promise<void> {
+export async function saveTeamMember(kind: 'captor' | 'broker', member: Partial<Captor> & Pick<Captor, 'name'>, id?: string, photo?: File, sourceKind?: 'captor' | 'broker'): Promise<void> {
   const client = requireSupabase()
   let uploadedPath: string | null = null
   let payload = member
@@ -160,10 +160,26 @@ export async function saveTeamMember(kind: 'captor' | 'broker', member: Partial<
   }
 
   try {
-    const result = kind === 'captor'
-      ? id ? await client.from('captors').update(payload).eq('id', id) : await client.from('captors').insert(payload)
-      : id ? await client.from('brokers').update(payload).eq('id', id) : await client.from('brokers').insert(payload)
-    if (result.error) throw result.error
+    if (id && sourceKind && sourceKind !== kind) {
+      const { error } = await client.rpc('move_team_member', {
+        p_from_kind: sourceKind,
+        p_to_kind: kind,
+        p_member_id: id,
+        p_name: payload.name,
+        p_photo_url: payload.photo_url ?? null,
+        p_phone: payload.phone ?? null,
+        p_whatsapp: payload.whatsapp ?? null,
+        p_email: payload.email ?? null,
+        p_description: payload.description ?? null,
+        p_active: payload.active ?? true,
+      })
+      if (error) throw error
+    } else {
+      const result = kind === 'captor'
+        ? id ? await client.from('captors').update(payload).eq('id', id) : await client.from('captors').insert(payload)
+        : id ? await client.from('brokers').update(payload).eq('id', id) : await client.from('brokers').insert(payload)
+      if (result.error) throw result.error
+    }
   } catch (reason) {
     if (uploadedPath) {
       const { error } = await client.storage.from('property-images').remove([uploadedPath])

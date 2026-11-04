@@ -886,7 +886,9 @@ function AdminPage() {
     setMemberError(''); setMemberSuccess('')
     try {
       const payload = { name: memberName.trim(), phone: memberPhone || null, whatsapp: memberWhatsapp || null, email: memberEmail || null }
-      await saveTeamMember(memberKind, payload, memberEditingId ?? undefined, memberPhoto ?? undefined)
+      const originalMember = memberEditingId ? team.find((member) => member.id === memberEditingId) : null
+      const sourceKind = originalMember ? (originalMember.name.includes('· corretor') ? 'broker' : 'captor') : undefined
+      await saveTeamMember(memberKind, payload, memberEditingId ?? undefined, memberPhoto ?? undefined, sourceKind)
       setMemberName(''); setMemberPhone(''); setMemberWhatsapp(''); setMemberEmail(''); setMemberPhoto(null); setMemberEditingId(null)
       setMemberSuccess(memberEditingId ? 'Informações do integrante atualizadas.' : 'Integrante cadastrado.')
       await refreshData()
@@ -950,7 +952,7 @@ function AdminPage() {
     } catch (reason) { setDataError(reason instanceof Error ? reason.message : 'Não foi possível excluir o integrante.') }
   }
   function selectMember(member: Captor) {
-    setSelectedMemberId(member.id)
+    setSelectedMemberId((current) => current === member.id ? '' : member.id)
   }
   async function submitSettings(event: React.FormEvent) {
     event.preventDefault(); setSettingsError(''); setSettingsSuccess('')
@@ -1071,7 +1073,7 @@ function AdminPage() {
               {memberError && <div className="admin-alert error-alert">{memberError}</div>}
               {memberSuccess && <div className="admin-alert success-alert">{memberSuccess}</div>}
               <form className="member-form" onSubmit={(event) => void addMember(event)}>
-                <label className="admin-field">Função<select value={memberKind} disabled={Boolean(memberEditingId)} onChange={(event) => setMemberKind(event.target.value as 'captor' | 'broker')}><option value="captor">Captador</option><option value="broker">Corretor de atendimento</option></select></label>
+                <label className="admin-field">Função<select value={memberKind} onChange={(event) => setMemberKind(event.target.value as 'captor' | 'broker')}><option value="captor">Captador</option><option value="broker">Corretor de atendimento</option></select></label>
                 <label className="admin-field">Nome<input required value={memberName} onChange={(event) => setMemberName(event.target.value)} placeholder="Nome completo" /></label>
                 <label className="admin-field">Telefone<input value={memberPhone} onChange={(event) => setMemberPhone(event.target.value)} placeholder="(61) 99999-9999" /></label>
                 <label className="admin-field">WhatsApp<input value={memberWhatsapp} onChange={(event) => setMemberWhatsapp(event.target.value)} placeholder="(61) 99999-9999" /></label>

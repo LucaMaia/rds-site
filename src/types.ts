@@ -205,7 +205,23 @@ export interface Database {
       public_brokers: DbTable<Pick<Broker, 'id' | 'name' | 'photo_url' | 'phone' | 'whatsapp' | 'active'>>
       public_site_settings: DbTable<SiteSettings>
     }
-    Functions: Record<string, never>
+    Functions: {
+      move_team_member: {
+        Args: {
+          p_from_kind: string
+          p_to_kind: string
+          p_member_id: string
+          p_name: string
+          p_photo_url: string | null
+          p_phone: string | null
+          p_whatsapp: string | null
+          p_email: string | null
+          p_description: string | null
+          p_active: boolean
+        }
+        Returns: undefined
+      }
+    }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
   }
