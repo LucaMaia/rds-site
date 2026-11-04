@@ -86,20 +86,13 @@ function propertyInquiryWhatsAppUrl(phone: string, property: Property, customer:
   const digits = phone.replace(/\D/g, '')
   const normalized = digits.startsWith('55') ? digits : `55${digits}`
   const rows = [
-    `Olá! Tenho interesse no imóvel ${property.code} - ${property.title}.`,
+    `Olá! Tenho interesse no imóvel ${property.code} - ${property.title} com ${property.bedrooms} ${property.bedrooms === 1 ? 'quarto' : 'quartos'}${property.suites ? ` sendo ${property.suites} ${property.suites === 1 ? 'suíte' : 'suítes'}` : ''}.`,
     `Meu nome: ${customer.name}`,
     `Meu WhatsApp: ${customer.whatsapp}`,
     `Meu e-mail: ${customer.email}`,
     `Tipo/finalidade: ${property.type} · ${property.purpose === 'VENDA' ? 'Venda' : property.purpose === 'ALUGUEL' ? 'Aluguel' : 'Venda e aluguel'}`,
     `Localização: ${property.neighborhood}, ${property.city} - ${property.state}`,
-    `Venda: ${currency(property.sale_price)} · Aluguel: ${property.rent_price != null ? `${currency(property.rent_price)}/mês` : '—'}`,
-    `Condomínio: ${property.condo_fee != null ? `${currency(property.condo_fee)}/mês` : '—'} · IPTU: ${property.property_tax != null ? `${currency(property.property_tax)} ${property.tax_frequency === 'ANUAL' ? '/ano' : '/mês'}` : '—'}`,
-    `Áreas: total ${property.total_area ?? '—'} m² · privativa ${property.private_area ?? '—'} m²`,
-    `Quartos: ${property.bedrooms} · Suítes: ${property.suites} · Banheiros: ${property.bathrooms} · Vagas: ${property.parking_spaces}`,
-    `Andar: ${property.floor ?? '—'} · Ano de construção: ${property.construction_year ?? '—'}`,
-    `Mobiliado: ${property.furnished ? 'Sim' : 'Não'} · Financiamento: ${property.financing ? 'Aceita' : 'Não'} · Permuta: ${property.trade ? 'Aceita' : 'Não'}`,
-    `Diferenciais: ${property.features.length ? property.features.join(', ') : '—'}`,
-    `Descrição: ${property.description || '—'}`,
+    '',
     `Link do imóvel: ${window.location.origin}/imoveis/${property.id}`,
   ]
   return `https://wa.me/${normalized}?text=${encodeURIComponent(rows.join('\n'))}`
