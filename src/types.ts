@@ -76,6 +76,16 @@ export interface Property {
   financing: boolean
   trade: boolean
   features: string[]
+  owner_name?: string | null
+  owner_phone?: string | null
+  living_rooms?: number | null
+  social_balcony?: boolean
+  infrastructure?: string[]
+  service_areas?: string[]
+  leisure_areas?: string[]
+  intimate_features?: string[]
+  closets?: string[]
+  floor_types?: string[]
   description: string
   featured: boolean
   created_at: string
@@ -199,6 +209,16 @@ export interface PropertyInput {
   financing: boolean
   trade: boolean
   features: string[]
+  owner_name: string | null
+  owner_phone: string | null
+  living_rooms: number | null
+  social_balcony: boolean
+  infrastructure: string[]
+  service_areas: string[]
+  leisure_areas: string[]
+  intimate_features: string[]
+  closets: string[]
+  floor_types: string[]
   description: string
   featured: boolean
 }

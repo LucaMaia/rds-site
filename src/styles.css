@@ -386,6 +386,13 @@ h1,h2,h3,p{margin-top:0}
 .form-section-heading>span{font:500 14px var(--serif);color:#b19a70}
 .form-section-heading h2{font:500 17px var(--serif);margin:0 0 4px}
 .form-section-heading p{font-size:9px;color:#888980;margin:0}
+.form-section-note{margin:-5px 0 14px;color:#777870;font-size:9px}
+.property-option-group{grid-column:1/-1;margin-top:4px}
+.property-option-group>.form-label{display:block;margin-bottom:9px}
+.property-option-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:7px}
+.property-option{display:flex;align-items:center;gap:7px;min-height:36px;padding:7px 9px;border:1px solid #e9e7e0;background:#fff;color:#62635c;font-size:9px;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.property-option.selected{border-color:#c5b38f;background:#f8f6f0;color:#383932}
+.property-option input{margin:0;accent-color:#927b52}
 .integration-notice{margin:0 0 14px;padding:10px 12px;background:#f8f5ed;color:#75694f;font-size:9px;line-height:1.6;border-radius:var(--radius-small)}
 .integration-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .integration-option{min-width:0;padding:13px;border:1px solid #efede8;border-radius:var(--radius-small);align-items:flex-start}

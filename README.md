@@ -37,13 +37,17 @@ Na Vercel, [vercel.json](./vercel.json) reescreve rotas SPA para o app, permitin
 
 O acesso administrativo usa Supabase Auth; nenhum cadastro público de usuários é oferecido. A autorização também é verificada pela tabela `profiles` e por políticas RLS. Não publique a senha temporária `admin123`.
 
+Em projetos Supabase já existentes, aplique [supabase/migrations/20261104150000_property_extended_details.sql](./supabase/migrations/20261104150000_property_extended_details.sql) para habilitar os novos campos do cadastro. A view pública inclui nome e telefone do proprietário conforme a decisão do produto, portanto esses dados ficam visíveis na ficha pública de imóveis publicados.
+
 ## Funcionalidades
 
 - Vitrine pública sem login, páginas de busca e detalhes.
 - Busca por localização, finalidade, tipo, faixa de preço, área, dormitórios e diferenciais.
 - Apenas imóveis publicados são retornados nas consultas públicas. A view pública omite endereço, número, complemento e CEP.
 - Painel protegido para métricas, relatórios com filtros, imóveis, equipe e canais de contato.
-- Cadastro e edição de imóveis, gestão de status com histórico, fotos no Supabase Storage, vídeos YouTube e links externos com controle de visibilidade.
+- Cadastro e edição de imóveis com dados do proprietário, infraestrutura, áreas de serviço e lazer, dormitórios/salas, armários e pisos; as características podem ser usadas no filtro público de diferenciais.
+- Os campos de nome e telefone do proprietário também aparecem na ficha pública do imóvel, junto às características cadastradas.
+- Gestão de status com histórico, fotos no Supabase Storage, vídeos YouTube e links externos com controle de visibilidade.
 - Captadores e corretores são cadastros independentes; o painel permite criar, editar, ativar/desativar e excluir integrantes. Ao excluir, os imóveis relacionados permanecem e ficam sem o responsável atribuído.
 - A migração `20261104130000_move_team_member_role.sql` habilita a troca de função com transferência dos imóveis associados; se algum imóvel já tiver outra pessoa na função de destino, a troca é bloqueada para evitar sobrescrever a atribuição.
 - Migração cria as tabelas, índices, views públicas, políticas RLS, bucket de imagens e os dois imóveis fictícios com fotografias ilustrativas.

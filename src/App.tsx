@@ -13,6 +13,20 @@ import type { Captor, IntegrationPortal, Property, PropertyImage, PropertyInput,
 
 const regions = ['Guará', 'Águas Claras', 'Asa Sul', 'Asa Norte', 'Sudoeste', 'Noroeste', 'Lago Sul', 'Lago Norte', 'Taguatinga', 'Ceilândia', 'Samambaia', 'Vicente Pires', 'Park Sul', 'Jardim Botânico', 'Park Way', 'Sobradinho', 'Valparaíso', 'Cidade Ocidental']
 const propertyTypes = ['Apartamento', 'Casa', 'Cobertura', 'Terreno', 'Comercial', 'Chácara']
+const infrastructureOptions = ['Alarme', 'Ar-condicionado', 'Aquecimento de água', 'Energia solar', 'Imóvel em condomínio', 'Interfone', 'Internet', 'Mobiliado', 'Placas fotovoltaicas', 'Portão elétrico', 'Semimobiliado', 'Terraço', 'TV a cabo']
+const serviceAreaOptions = ['Área de serviço', 'Banheiro de empregado', 'Copa', 'Cozinha', 'Despensa', 'Dormitório de empregada', 'Lavanderia']
+const leisureAreaOptions = ['Adega', 'Campo de futebol', 'Churrasqueira', 'Ofurô', 'Piscina', 'Playground', 'Quadra de tênis', 'Quadra poliesportiva', 'Quintal', 'Sauna', 'Solário', 'Varanda gourmet', 'Vestiário']
+const intimateFeatureOptions = ['Hidromassagem', 'Lavabo', 'Dormitório reversível']
+const closetOptions = ['Área de serviço', 'Banheiro', 'Closet', 'Corredor', 'Cozinha', 'Dormitório', 'Dependência de empregado', 'Escritório', 'Home theater/cinema', 'Sala']
+const floorTypeOptions = ['Aquecido', 'Ardósia', 'Bloquete', 'Carpete', 'Madeira', 'Cerâmica', 'Cimento queimado', 'Contrapiso', 'Emborrachado', 'Granito', 'Laminado', 'Mármore', 'Porcelanato', 'Tábua', 'Taco de madeira', 'Vinílico']
+const propertyFeatureGroups = [
+  ['Infraestrutura', 'infrastructure'],
+  ['Área de serviço', 'service_areas'],
+  ['Lazer e áreas externas', 'leisure_areas'],
+  ['Área íntima', 'intimate_features'],
+  ['Armários', 'closets'],
+  ['Tipos de piso', 'floor_types'],
+] as const
 const statuses: PropertyStatus[] = ['CRIADO', 'PUBLICADO', 'PAUSADO', 'STAND_BY', 'VENDIDO', 'ALUGADO', 'CANCELADO']
 const statusNames: Record<PropertyStatus, string> = {
   CRIADO: 'Criado', PUBLICADO: 'Publicado', PAUSADO: 'Pausado', STAND_BY: 'Stand by',
@@ -21,6 +35,19 @@ const statusNames: Record<PropertyStatus, string> = {
 const imageFallback = 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1400&q=85'
 const instagramUrl = 'https://www.instagram.com/rds.imoveis/'
 const youtubeUrl = 'https://www.youtube.com/@RDSIMOVEISimoveis'
+
+function propertyFeatures(property: Property): string[] {
+  return [...new Set([
+    ...property.features,
+    ...(property.infrastructure ?? []),
+    ...(property.service_areas ?? []),
+    ...(property.leisure_areas ?? []),
+    ...(property.intimate_features ?? []),
+    ...(property.closets ?? []),
+    ...(property.floor_types ?? []),
+    ...(property.social_balcony ? ['Sacada ou varanda na área social'] : []),
+  ])]
+}
 
 function SocialLinks({ className }: { className: string }) {
   return <div className={className}>
@@ -299,7 +326,7 @@ function ResultsPage() {
   const query = searchParams.get('q') ?? ''
   const purpose = searchParams.get('finalidade') ?? ''
   const [sort, setSort] = useState('recentes')
-  const [filters, setFilters] = useState({ type: searchParams.get('tipo') ?? '', state: '', city: '', neighborhood: '', min: '', max: '', areaMin: '', areaMax: '', beds: '', suites: '', baths: '', parking: '', feature: '' })
+  const [filters, setFilters] = useState({ type: searchParams.get('tipo') ?? '', state: '', city: '', neighborhood: '', min: '', max: '', areaMin: '', areaMax: '', beds: '', livingRooms: '', suites: '', baths: '', parking: '', feature: '' })
   useEffect(() => {
     let active = true
     setLoading(true)
@@ -322,10 +349,11 @@ function ResultsPage() {
         (!filters.areaMin || (property.total_area != null && property.total_area >= Number(filters.areaMin))) &&
         (!filters.areaMax || (property.total_area != null && property.total_area <= Number(filters.areaMax))) &&
         (!filters.beds || property.bedrooms >= Number(filters.beds)) &&
+        (!filters.livingRooms || (property.living_rooms != null && property.living_rooms >= Number(filters.livingRooms))) &&
         (!filters.suites || property.suites >= Number(filters.suites)) &&
         (!filters.baths || property.bathrooms >= Number(filters.baths)) &&
         (!filters.parking || property.parking_spaces >= Number(filters.parking)) &&
-        (!filters.feature || property.features.includes(filters.feature))
+        (!filters.feature || propertyFeatures(property).includes(filters.feature))
     }).sort((a, b) => {
       if (sort === 'menor-preco') return (a.sale_price ?? a.rent_price ?? 0) - (b.sale_price ?? b.rent_price ?? 0)
       if (sort === 'maior-preco') return (b.sale_price ?? b.rent_price ?? 0) - (a.sale_price ?? a.rent_price ?? 0)
@@ -335,7 +363,7 @@ function ResultsPage() {
   }, [properties, query, purpose, filters, sort])
   function setFilter(key: keyof typeof filters, value: string) { setFilters((current) => ({ ...current, [key]: value })) }
   function clearFilters() {
-    setFilters({ type: '', state: '', city: '', neighborhood: '', min: '', max: '', areaMin: '', areaMax: '', beds: '', suites: '', baths: '', parking: '', feature: '' })
+    setFilters({ type: '', state: '', city: '', neighborhood: '', min: '', max: '', areaMin: '', areaMax: '', beds: '', livingRooms: '', suites: '', baths: '', parking: '', feature: '' })
     setSearchParams({})
   }
   return <><Header /><main className="results-page">
@@ -355,8 +383,8 @@ function ResultsPage() {
         <span className="filter-group-title">Área (m²)</span>
         <div className="two-fields"><label className="field-label">Mínima<input type="number" value={filters.areaMin} onChange={(event) => setFilter('areaMin', event.target.value)} placeholder="0" /></label><label className="field-label">Máxima<input type="number" value={filters.areaMax} onChange={(event) => setFilter('areaMax', event.target.value)} placeholder="—" /></label></div>
         <div className="filter-divider" /><span className="filter-group-title">Características mínimas</span>
-        <div className="two-fields">{([['beds', 'Quartos'], ['suites', 'Suítes'], ['baths', 'Banheiros'], ['parking', 'Vagas']] as const).map(([key, title]) => <label key={key} className="field-label">{title}<select value={filters[key]} onChange={(event) => setFilter(key, event.target.value)}><option value="">Qualquer</option>{[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}+</option>)}</select></label>)}</div>
-        <label className="field-label">Diferencial<select value={filters.feature} onChange={(event) => setFilter('feature', event.target.value)}><option value="">Qualquer</option>{[...new Set(properties.flatMap((property) => property.features))].sort().map((feature) => <option key={feature}>{feature}</option>)}</select></label>
+        <div className="two-fields">{([['beds', 'Dormitórios'], ['livingRooms', 'Salas'], ['suites', 'Suítes'], ['baths', 'Banheiros'], ['parking', 'Vagas']] as const).map(([key, title]) => <label key={key} className="field-label">{title}<select value={filters[key]} onChange={(event) => setFilter(key, event.target.value)}><option value="">Qualquer</option>{[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}+</option>)}</select></label>)}</div>
+        <label className="field-label">Diferencial<select value={filters.feature} onChange={(event) => setFilter('feature', event.target.value)}><option value="">Qualquer</option>{[...new Set(properties.flatMap(propertyFeatures))].sort().map((feature) => <option key={feature}>{feature}</option>)}</select></label>
       </aside>
       <section className="results-content">
         <div className="result-toolbar"><div><button className="filter-toggle" onClick={() => setFiltersOpen(!filtersOpen)}><Filter size={16} />Filtros</button><span><strong>{loading ? '—' : results.length}</strong> imóveis encontrados</span></div><label className="sort-select">Ordenar por <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="recentes">Mais recentes</option><option value="menor-preco">Menor preço</option><option value="maior-preco">Maior preço</option><option value="maior-area">Maior metragem</option></select></label></div>
@@ -420,6 +448,12 @@ function DetailPage() {
     }
   }
   function shiftPhoto(direction: number) { setPhoto((current) => (current + direction + images.length) % images.length) }
+  const detailFeatureGroups = [
+    ...propertyFeatureGroups.map(([label, key]) => ({ label, items: property[key] ?? [] })),
+    ...(property.social_balcony ? [{ label: 'Área social', items: ['Sacada ou varanda na área social'] }] : []),
+  ].filter((group) => group.items.length > 0)
+  const groupedFeatureNames = new Set(detailFeatureGroups.flatMap((group) => group.items))
+  const otherFeatures = property.features.filter((feature) => !groupedFeatureNames.has(feature))
   return <><Header /><main className="detail-page">
     <div className="detail-topline"><Link to="/imoveis"><ArrowLeft size={15} /> Voltar aos imóveis</Link><span>{property.code}</span></div>
     <div className="gallery">
@@ -435,11 +469,13 @@ function DetailPage() {
         <div className="detail-section"><h2>Sobre este imóvel</h2><p className="description">{property.description}</p></div>
         <div className="detail-section"><h2>Detalhes do imóvel</h2><div className="detail-facts">{[
           ['Código', property.code], ['Tipo', property.type], ['Área total', property.total_area ? `${property.total_area} m²` : '—'],
-          ['Área privativa', property.private_area ? `${property.private_area} m²` : '—'], ['Quartos', String(property.bedrooms)], ['Suítes', String(property.suites)],
+          ['Área privativa', property.private_area ? `${property.private_area} m²` : '—'], ['Dormitórios', String(property.bedrooms)], ['Salas', property.living_rooms == null ? '—' : String(property.living_rooms)], ['Suítes', String(property.suites)],
           ['Banheiros', String(property.bathrooms)], ['Vagas', String(property.parking_spaces)], ['Condomínio', currency(property.condo_fee)],
           ['IPTU', property.property_tax ? `${currency(property.property_tax)} ${property.tax_frequency === 'ANUAL' ? '/ ano' : '/ mês'}` : '—'],
         ].map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div></div>
-        {!!property.features.length && <div className="detail-section"><h2>O que este imóvel oferece</h2><div className="feature-tags">{property.features.map((feature) => <span key={feature}><Check size={14} />{feature}</span>)}</div></div>}
+        {(property.owner_name || property.owner_phone) && <div className="detail-section"><h2>Dados do proprietário</h2><div className="detail-facts">{property.owner_name && <div><span>Nome</span><strong>{property.owner_name}</strong></div>}{property.owner_phone && <div><span>Telefone</span><strong><a href={`tel:${property.owner_phone.replace(/[^\d+]/g, '')}`}>{property.owner_phone}</a></strong></div>}</div></div>}
+        {!!otherFeatures.length && <div className="detail-section"><h2>Outros diferenciais</h2><div className="feature-tags">{otherFeatures.map((feature) => <span key={feature}><Check size={14} />{feature}</span>)}</div></div>}
+        {detailFeatureGroups.map((group) => <div className="detail-section" key={group.label}><h2>{group.label}</h2><div className="feature-tags">{group.items.map((feature) => <span key={feature}><Check size={14} />{feature}</span>)}</div></div>)}
         {!!property.property_videos?.length && <div className="detail-section"><h2>Conheça por vídeo</h2><div className="video-grid">{property.property_videos.map((video) => { const embed = youtubeEmbed(video.url); return embed ? <iframe key={video.id} src={embed} title={`Vídeo de ${property.title}`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen /> : null })}</div></div>}
         {!!property.property_links?.length && <div className="detail-section"><h2>Saiba mais</h2><div className="external-links">{property.property_links.filter((link) => link.is_public).map((link) => <a key={link.id} href={link.url} target="_blank" rel="noreferrer">{link.image_url ? <img src={link.image_url} alt="" /> : <ArrowUpRight size={16} />}{link.name}</a>)}</div></div>}
       </article>
@@ -476,7 +512,9 @@ const blankInput: PropertyInput = {
   zip_code: null, state: 'Distrito Federal', city: 'Brasília', neighborhood: '', address: null, number: null, complement: null,
   sale_price: null, rent_price: null, condo_fee: null, property_tax: null, tax_frequency: null,
   total_area: null, private_area: null, bedrooms: 0, suites: 0, bathrooms: 0, parking_spaces: 0,
-  floor: null, construction_year: null, furnished: false, financing: false, trade: false, features: [], description: '', featured: false,
+  floor: null, construction_year: null, furnished: false, financing: false, trade: false, features: [],
+  owner_name: null, owner_phone: null, living_rooms: null, social_balcony: false, infrastructure: [], service_areas: [],
+  leisure_areas: [], intimate_features: [], closets: [], floor_types: [], description: '', featured: false,
 }
 
 const brazilianStateNames: Record<string, string> = {
@@ -492,7 +530,9 @@ function propertyInput(property: Property | null): PropertyInput {
   if (!property) return { ...blankInput }
   const { id: _id, created_at: _created, updated_at: _updated, captor: _captor, broker: _broker, property_images: _images, property_videos: _videos, property_links: _links, status_history: _history, integrations: _integrations, ...input } = property
   void _id; void _created; void _updated; void _captor; void _broker; void _images; void _videos; void _links; void _history; void _integrations
-  return { ...blankInput, ...input }
+  const values = { ...blankInput, ...input }
+  if (property.furnished && !values.infrastructure.includes('Mobiliado')) values.infrastructure = [...values.infrastructure, 'Mobiliado']
+  return values
 }
 
 const propertyEditorDraftPrefix = 'rds-property-editor-draft:'
@@ -571,7 +611,7 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
 }) {
   const draftKey = propertyEditorDraftKey(userId, property?.id ?? null)
   const [initialDraft] = useState(() => readPropertyEditorDraft(userId, property?.id ?? null))
-  const [values, setValues] = useState<PropertyInput>(() => initialDraft?.values ?? propertyInput(property))
+  const [values, setValues] = useState<PropertyInput>(() => ({ ...propertyInput(property), ...initialDraft?.values }))
   const [images, setImages] = useState<PropertyImage[]>(() => initialDraft?.images ?? property?.property_images ?? [])
   const [photos, setPhotos] = useState<File[]>([])
   const [videos, setVideos] = useState(() => initialDraft?.videos ?? (property?.property_videos ?? []).map((video) => video.url).join('\n'))
@@ -651,10 +691,24 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
     setValues((current) => ({ ...current, [key]: value }))
   }
   function numeric(key: keyof PropertyInput, value: string) {
-    setValues((current) => ({ ...current, [key]: numberValue(value) }))
+    const parsed = numberValue(value)
+    setValues((current) => ({ ...current, [key]: parsed }))
   }
   function toggleFeature(feature: string) {
     setValues((current) => ({ ...current, features: current.features.includes(feature) ? current.features.filter((item) => item !== feature) : [...current.features, feature] }))
+  }
+  function togglePropertyOption(key: 'infrastructure' | 'service_areas' | 'leisure_areas' | 'intimate_features' | 'closets' | 'floor_types', option: string) {
+    setValues((current) => {
+      const selected = current[key].includes(option)
+      let nextOptions = selected ? current[key].filter((item) => item !== option) : [...current[key], option]
+      if (key === 'infrastructure' && !selected && option === 'Mobiliado') nextOptions = nextOptions.filter((item) => item !== 'Semimobiliado')
+      if (key === 'infrastructure' && !selected && option === 'Semimobiliado') nextOptions = nextOptions.filter((item) => item !== 'Mobiliado')
+      return {
+        ...current,
+        [key]: nextOptions,
+        ...(key === 'infrastructure' && ['Mobiliado', 'Semimobiliado'].includes(option) ? { furnished: option === 'Mobiliado' && !selected } : {}),
+      }
+    })
   }
   function moveImage(index: number, direction: number) {
     const target = index + direction
@@ -692,7 +746,12 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
           if (!['https:', 'http:'].includes(imageUrl.protocol)) throw new Error(`A imagem do link "${link.name}" precisa usar HTTP ou HTTPS.`)
         }
       }
-      await saveProperty(values, property?.id ?? null, photos, videoUrls, links, images, [], activePortals)
+      const propertyValues = {
+        ...values,
+        owner_name: values.owner_name?.trim() || null,
+        owner_phone: values.owner_phone?.trim() || null,
+      }
+      await saveProperty(propertyValues, property?.id ?? null, photos, videoUrls, links, images, [], activePortals)
       clearPropertyEditorDraft(userId, property?.id ?? null)
       setSuccess('Imóvel salvo com sucesso.')
       onSaved()
@@ -700,7 +759,8 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
       setError(reason instanceof Error ? reason.message : 'Não foi possível salvar o imóvel.')
     } finally { setSaving(false) }
   }
-  const field = (label: string, key: keyof PropertyInput, type = 'text', required = false, placeholder = '') => <label className="admin-field">{label}<input type={type} required={required} value={String(values[key] ?? '')} placeholder={placeholder} onChange={(event) => type === 'number' ? numeric(key, event.target.value) : text(key, event.target.value)} /></label>
+  const field = (label: string, key: keyof PropertyInput, type = 'text', required = false, placeholder = '') => <label className="admin-field">{label}<input type={type} min={type === 'number' ? 0 : undefined} required={required} value={String(values[key] ?? '')} placeholder={placeholder} onChange={(event) => type === 'number' ? numeric(key, event.target.value) : text(key, event.target.value)} /></label>
+  const optionGroup = (label: string, key: 'infrastructure' | 'service_areas' | 'leisure_areas' | 'intimate_features' | 'closets' | 'floor_types', options: string[]) => <div className="property-option-group"><span className="form-label">{label}</span><div className="property-option-grid">{options.map((option) => <label className={values[key].includes(option) ? 'property-option selected' : 'property-option'} key={option}><input type="checkbox" checked={values[key].includes(option)} onChange={() => togglePropertyOption(key, option)} />{option}</label>)}</div></div>
   return <form className="admin-editor" onSubmit={submit}>
     <div className="admin-page-heading editor-heading"><div><button type="button" className="back-button" onClick={onCancel}><ArrowLeft size={15} /> Todos os imóveis</button><h1>{property ? 'Editar imóvel' : 'Cadastrar imóvel'}</h1><p>Preencha os detalhes para manter sua carteira atualizada.</p></div></div>
     <div className="admin-alert info-alert">{draftRestored ? 'Rascunho recuperado deste navegador. Ele será mantido por até 5 minutos após a última alteração.' : 'As alterações não salvas ficam guardadas neste navegador por até 5 minutos após a última alteração.'}{initialDraft?.hadPendingPhotos && ' As fotos locais selecionadas anteriormente precisam ser adicionadas novamente.'}</div>
@@ -724,20 +784,34 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
       {field('Preço de venda (R$)', 'sale_price', 'number')}{field('Preço de aluguel mensal (R$)', 'rent_price', 'number')}{field('Condomínio mensal (R$)', 'condo_fee', 'number')}{field('IPTU (R$)', 'property_tax', 'number')}
       <label className="admin-field">Frequência do IPTU<select value={values.tax_frequency ?? ''} onChange={(event) => setValues((current) => ({ ...current, tax_frequency: event.target.value || null }))}><option value="">Não informado</option><option value="MENSAL">Mensal</option><option value="ANUAL">Anual</option></select></label>
     </div></section>
-    <section className="form-section"><div className="form-section-heading"><span>04</span><div><h2>Características</h2><p>Detalhes e comodidades</p></div></div><div className="admin-form-grid">
-      {field('Área total (m²)', 'total_area', 'number')}{field('Área privativa (m²)', 'private_area', 'number')}{field('Quartos', 'bedrooms', 'number')}{field('Suítes', 'suites', 'number')}{field('Banheiros', 'bathrooms', 'number')}{field('Vagas', 'parking_spaces', 'number')}{field('Andar', 'floor', 'number')}{field('Ano de construção', 'construction_year', 'number')}
-      <div className="check-group">{([['furnished', 'Mobiliado'], ['financing', 'Aceita financiamento'], ['trade', 'Aceita permuta']] as const).map(([key, label]) => <label className="check-field" key={key}><input type="checkbox" checked={values[key]} onChange={(event) => setValues((current) => ({ ...current, [key]: event.target.checked }))} />{label}</label>)}</div>
+    <section className="form-section"><div className="form-section-heading"><span>04</span><div><h2>Características básicas</h2><p>Medidas e comodidades gerais do imóvel</p></div></div><div className="admin-form-grid">
+      {field('Área total (m²)', 'total_area', 'number')}{field('Área privativa (m²)', 'private_area', 'number')}{field('Suítes', 'suites', 'number')}{field('Banheiros', 'bathrooms', 'number')}{field('Vagas', 'parking_spaces', 'number')}{field('Andar', 'floor', 'number')}{field('Ano de construção', 'construction_year', 'number')}
+      <div className="check-group">{([['financing', 'Aceita financiamento'], ['trade', 'Aceita permuta']] as const).map(([key, label]) => <label className="check-field" key={key}><input type="checkbox" checked={values[key]} onChange={(event) => setValues((current) => ({ ...current, [key]: event.target.checked }))} />{label}</label>)}</div>
       <div className="feature-picker"><span className="form-label">Diferenciais</span><div className="feature-options">{featureOptions.map((feature) => <label key={feature} className={values.features.includes(feature) ? 'feature-option selected' : 'feature-option'}><input type="checkbox" checked={values.features.includes(feature)} onChange={() => toggleFeature(feature)} />{feature}</label>)}</div></div>
       {(values.features.includes('Outros') || values.features.some((feature) => !featureOptions.includes(feature))) && <label className="admin-field">Outros diferenciais<input value={values.features.filter((feature) => !featureOptions.includes(feature)).join(', ')} onChange={(event) => setValues((current) => ({ ...current, features: [...current.features.filter((feature) => featureOptions.includes(feature)), ...event.target.value.split(',').map((feature) => feature.trim()).filter(Boolean)] }))} placeholder="Separe por vírgula" /></label>}
     </div></section>
-    <section className="form-section"><div className="form-section-heading"><span>05</span><div><h2>Descrição</h2><p>Apresente os diferenciais deste imóvel</p></div></div><label className="admin-field">Descrição completa<textarea rows={6} value={values.description} onChange={(event) => text('description', event.target.value)} placeholder="Conte o que torna este imóvel especial..." /></label></section>
-    <section className="form-section"><div className="form-section-heading"><span>06</span><div><h2>Fotografias</h2><p>Imagens nítidas ajudam a apresentar melhor o imóvel</p></div></div><label className="upload-zone"><Upload size={23} /><strong>Adicionar fotografias</strong><span>JPG, PNG ou WEBP · até 12 MB por imagem</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => setPhotos((current) => [...current, ...Array.from(event.target.files ?? [])])} /></label><div className="image-manager">
+    <section className="form-section"><div className="form-section-heading"><span>05</span><div><h2>Dados do proprietário</h2><p>Informações de contato do proprietário</p></div></div><div className="admin-form-grid">
+      <label className="admin-field">Nome do proprietário<input value={values.owner_name ?? ''} onChange={(event) => text('owner_name', event.target.value)} /></label>
+      <label className="admin-field">Telefone do proprietário<input type="tel" autoComplete="tel" value={values.owner_phone ?? ''} placeholder="Celular ou telefone fixo" onChange={(event) => text('owner_phone', event.target.value)} /></label>
+    </div></section>
+    <section className="form-section"><div className="form-section-heading"><span>06</span><div><h2>Infraestrutura do imóvel</h2><p>Marque todas as características existentes</p></div></div>{optionGroup('Infraestrutura', 'infrastructure', infrastructureOptions)}</section>
+    <section className="form-section"><div className="form-section-heading"><span>07</span><div><h2>Área de serviço</h2><p>Selecione os ambientes e recursos disponíveis</p></div></div>{optionGroup('Ambientes', 'service_areas', serviceAreaOptions)}</section>
+    <section className="form-section"><div className="form-section-heading"><span>08</span><div><h2>Lazer e áreas externas</h2><p>Marque todas as opções disponíveis</p></div></div>{optionGroup('Lazer e áreas externas', 'leisure_areas', leisureAreaOptions)}</section>
+    <section className="form-section"><div className="form-section-heading"><span>09</span><div><h2>Salas e área social</h2><p>Quantidade de salas e acesso à área externa</p></div></div><div className="admin-form-grid">
+      {field('Quantidade de salas', 'living_rooms', 'number')}
+      <label className="check-field"><input type="checkbox" checked={values.social_balcony} onChange={(event) => setValues((current) => ({ ...current, social_balcony: event.target.checked }))} />Sacada ou varanda na área social</label>
+    </div></section>
+    <section className="form-section"><div className="form-section-heading"><span>10</span><div><h2>Área íntima</h2><p>Dormitórios e características dos ambientes íntimos</p></div></div><div className="admin-form-grid">{field('Quantidade de dormitórios', 'bedrooms', 'number', true)}{optionGroup('Características', 'intimate_features', intimateFeatureOptions)}</div></section>
+    <section className="form-section"><div className="form-section-heading"><span>11</span><div><h2>Armários</h2><p>Marque os ambientes que possuem armários</p></div></div>{optionGroup('Ambientes com armários', 'closets', closetOptions)}</section>
+    <section className="form-section"><div className="form-section-heading"><span>12</span><div><h2>Tipos de piso</h2><p>Selecione todos os tipos de piso existentes</p></div></div>{optionGroup('Pisos', 'floor_types', floorTypeOptions)}</section>
+    <section className="form-section"><div className="form-section-heading"><span>13</span><div><h2>Descrição</h2><p>Apresente os diferenciais deste imóvel</p></div></div><label className="admin-field">Descrição completa<textarea rows={6} value={values.description} onChange={(event) => text('description', event.target.value)} placeholder="Conte o que torna este imóvel especial..." /></label></section>
+    <section className="form-section"><div className="form-section-heading"><span>14</span><div><h2>Fotografias</h2><p>Imagens nítidas ajudam a apresentar melhor o imóvel</p></div></div><label className="upload-zone"><Upload size={23} /><strong>Adicionar fotografias</strong><span>JPG, PNG ou WEBP · até 12 MB por imagem</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => setPhotos((current) => [...current, ...Array.from(event.target.files ?? [])])} /></label><div className="image-manager">
       {images.map((image, index) => <div className="managed-image" key={image.id}><img src={image.url} alt={`Foto ${index + 1}`} /><span>{index === 0 ? 'Principal' : `Foto ${index + 1}`}</span><div><button type="button" onClick={() => moveImage(index, -1)} aria-label="Mover foto para cima"><ArrowUp size={14} /></button><button type="button" onClick={() => moveImage(index, 1)} aria-label="Mover foto para baixo"><ArrowDown size={14} /></button><button type="button" onClick={() => setImages((current) => current.filter((item) => item.id !== image.id).map((item, order) => ({ ...item, display_order: order, is_cover: order === 0 })))} aria-label="Remover foto"><Trash2 size={14} /></button></div></div>)}
       {photos.map((file, index) => <div className="managed-image" key={`${file.name}-${index}`}><img src={URL.createObjectURL(file)} alt={file.name} /><span>Nova foto</span><button type="button" onClick={() => setPhotos((current) => current.filter((_, fileIndex) => fileIndex !== index))} aria-label="Remover nova foto"><Trash2 size={14} /></button></div>)}
     </div></section>
-    <section className="form-section"><div className="form-section-heading"><span>07</span><div><h2>Vídeos</h2><p>Adicione links do YouTube, um por linha</p></div></div><label className="admin-field">Links de vídeo<textarea rows={3} value={videos} onChange={(event) => setVideos(event.target.value)} placeholder="https://www.youtube.com/watch?v=..." /></label></section>
-    <section className="form-section"><div className="form-section-heading"><span>08</span><div><h2>Links externos</h2><p>Tour virtual, redes sociais ou outros portais</p></div></div><div className="link-editor-list">{links.map((link, index) => <div className="link-editor-row" key={link.id || `new-${index}`}><input placeholder="Nome do link" value={link.name} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} /><input placeholder="URL https://" value={link.url} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, url: event.target.value } : item))} /><input placeholder="URL da imagem / logotipo (opcional)" value={link.image_url ?? ''} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, image_url: event.target.value || null } : item))} /><label className="check-field"><input type="checkbox" checked={link.is_public} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, is_public: event.target.checked } : item))} />Público</label><button type="button" className="icon-button" onClick={() => moveLink(index, -1)} aria-label="Mover link para cima"><ArrowUp size={14} /></button><button type="button" className="icon-button" onClick={() => moveLink(index, 1)} aria-label="Mover link para baixo"><ArrowDown size={14} /></button><button type="button" className="icon-button danger" onClick={() => setLinks((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label="Excluir link"><Trash2 size={16} /></button></div>)}<button type="button" className="add-link" onClick={() => setLinks((current) => [...current, { id: '', property_id: property?.id ?? '', name: '', url: '', image_url: null, is_public: true, display_order: current.length }])}><Plus size={16} /> Adicionar link</button></div></section>
-    <section className="form-section"><div className="form-section-heading"><span>09</span><div><h2>Portais imobiliários</h2><p>Selecione onde este imóvel deverá ser preparado para publicação</p></div></div><p className="integration-notice">Esta seleção apenas registra sua intenção no sistema. Ainda não gera XML nem publica o anúncio nos portais.</p><div className="integration-options">{([['olx', 'OLX'], ['wimoveis', 'Wimóveis']] as const).map(([portal, label]) => <label className="check-field integration-option" key={portal}><input type="checkbox" checked={activePortals.includes(portal)} onChange={(event) => setActivePortals((current) => event.target.checked ? [...current, portal] : current.filter((item) => item !== portal))} /><span><strong>{label}</strong><small>Incluir este imóvel na seleção futura do feed</small></span></label>)}</div></section>
+    <section className="form-section"><div className="form-section-heading"><span>15</span><div><h2>Vídeos</h2><p>Adicione links do YouTube, um por linha</p></div></div><label className="admin-field">Links de vídeo<textarea rows={3} value={videos} onChange={(event) => setVideos(event.target.value)} placeholder="https://www.youtube.com/watch?v=..." /></label></section>
+    <section className="form-section"><div className="form-section-heading"><span>16</span><div><h2>Links externos</h2><p>Tour virtual, redes sociais ou outros portais</p></div></div><div className="link-editor-list">{links.map((link, index) => <div className="link-editor-row" key={link.id || `new-${index}`}><input placeholder="Nome do link" value={link.name} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} /><input placeholder="URL https://" value={link.url} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, url: event.target.value } : item))} /><input placeholder="URL da imagem / logotipo (opcional)" value={link.image_url ?? ''} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, image_url: event.target.value || null } : item))} /><label className="check-field"><input type="checkbox" checked={link.is_public} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, is_public: event.target.checked } : item))} />Público</label><button type="button" className="icon-button" onClick={() => moveLink(index, -1)} aria-label="Mover link para cima"><ArrowUp size={14} /></button><button type="button" className="icon-button" onClick={() => moveLink(index, 1)} aria-label="Mover link para baixo"><ArrowDown size={14} /></button><button type="button" className="icon-button danger" onClick={() => setLinks((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label="Excluir link"><Trash2 size={16} /></button></div>)}<button type="button" className="add-link" onClick={() => setLinks((current) => [...current, { id: '', property_id: property?.id ?? '', name: '', url: '', image_url: null, is_public: true, display_order: current.length }])}><Plus size={16} /> Adicionar link</button></div></section>
+    <section className="form-section"><div className="form-section-heading"><span>17</span><div><h2>Portais imobiliários</h2><p>Selecione onde este imóvel deverá ser preparado para publicação</p></div></div><p className="integration-notice">Esta seleção apenas registra sua intenção no sistema. Ainda não gera XML nem publica o anúncio nos portais.</p><div className="integration-options">{([['olx', 'OLX'], ['wimoveis', 'Wimóveis']] as const).map(([portal, label]) => <label className="check-field integration-option" key={portal}><input type="checkbox" checked={activePortals.includes(portal)} onChange={(event) => setActivePortals((current) => event.target.checked ? [...current, portal] : current.filter((item) => item !== portal))} /><span><strong>{label}</strong><small>Incluir este imóvel na seleção futura do feed</small></span></label>)}</div></section>
     <div className="editor-bottom"><button type="button" className="button button-outline" onClick={onCancel}>Cancelar</button><button className="button button-dark" disabled={saving}>{saving ? 'Salvando...' : 'Salvar imóvel'}</button></div>
   </form>
 }
