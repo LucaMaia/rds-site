@@ -438,7 +438,6 @@ function DetailPage() {
         <span className="eyebrow">ATENDIMENTO</span>
         <div className="agent"><div className="agent-avatar">{property.broker?.photo_url || property.captor?.photo_url ? <img src={property.broker?.photo_url ?? property.captor?.photo_url ?? ''} alt="" /> : <CircleUserRound size={25} />}</div><div><strong>{property.broker?.name ?? property.captor?.name ?? 'Equipe RDS'}</strong><span>Especialista imobiliário</span></div></div>
         {contactPhone ? <a className="button button-dark full-button" href={whatsappUrl(contactPhone, property.code)} target="_blank" rel="noreferrer">Conversar pelo WhatsApp <ArrowUpRight size={17} /></a> : <span className="contact-unavailable">{settingsError ? 'Não foi possível carregar os canais de contato.' : 'WhatsApp não configurado para este atendimento.'}</span>}
-        {settings.contact_email && <a className="contact-email" href={`mailto:${settings.contact_email}?subject=${encodeURIComponent(`Interesse no imóvel ${property.code}`)}`}>Enviar um e-mail</a>}
         <span className="property-code-note">Código do imóvel: {property.code}</span>
       </aside>
     </div>
