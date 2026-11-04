@@ -11,7 +11,7 @@ import { currency, numberValue, whatsappContactUrl, whatsappUrl, youtubeEmbed } 
 import { supabase } from './lib/supabase'
 import type { Captor, IntegrationPortal, Property, PropertyImage, PropertyInput, PropertyInteraction, PropertyLink, PropertyStatus } from './types'
 
-const regions = ['Guará', 'Águas Claras', 'Asa Sul', 'Asa Norte', 'Sudoeste', 'Noroeste', 'Lago Sul', 'Lago Norte', 'Taguatinga', 'Ceilândia', 'Samambaia', 'Vicente Pires', 'Park Sul', 'Jardim Botânico']
+const regions = ['Guará', 'Águas Claras', 'Asa Sul', 'Asa Norte', 'Sudoeste', 'Noroeste', 'Lago Sul', 'Lago Norte', 'Taguatinga', 'Ceilândia', 'Samambaia', 'Vicente Pires', 'Park Sul', 'Jardim Botânico', 'Park Way', 'Sobradinho', 'Valparaíso', 'Cidade Ocidental']
 const propertyTypes = ['Apartamento', 'Casa', 'Cobertura', 'Terreno', 'Comercial', 'Chácara']
 const statuses: PropertyStatus[] = ['CRIADO', 'PUBLICADO', 'PAUSADO', 'STAND_BY', 'VENDIDO', 'ALUGADO', 'CANCELADO']
 const statusNames: Record<PropertyStatus, string> = {
