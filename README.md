@@ -46,11 +46,11 @@ O acesso administrativo usa Supabase Auth; nenhum cadastro público de usuários
 - Cadastro e edição de imóveis, gestão de status com histórico, fotos no Supabase Storage, vídeos YouTube e links externos com controle de visibilidade.
 - Captadores e corretores são cadastros independentes.
 - Migração cria as tabelas, índices, views públicas, políticas RLS, bucket de imagens e os dois imóveis fictícios com fotografias ilustrativas.
-- Formulário de interesse no detalhe do imóvel: envia os dados do cliente e os detalhes do anúncio por e-mail; após a confirmação, permite abrir o WhatsApp do atendimento com a mensagem preenchida.
+- Formulário de interesse no detalhe do imóvel: envia os dados do cliente e os detalhes do anúncio por e-mail; após a confirmação, permite abrir o WhatsApp da equipe RDS (+55 61 99944 9411) com a mensagem preenchida.
 
 ## Contato por e-mail e WhatsApp
 
-O formulário público usa a Supabase Edge Function `property-inquiry`. O destinatário do e-mail é o contato configurado no painel; se estiver vazio, usa `lucamaia2007@hotmail.com`. Para o primeiro teste com `onboarding@resend.dev`, o destino deve ser o endereço da própria conta Resend; para outros destinatários, verifique um domínio no Resend e use um remetente desse domínio. O WhatsApp é aberto com a mensagem pronta para o corretor atribuído (ou contato disponível), mas o cliente precisa confirmar o envio no próprio WhatsApp.
+O formulário público usa a Supabase Edge Function `property-inquiry`. O destinatário do e-mail é o contato configurado no painel; se estiver vazio, usa `lucamaia2007@hotmail.com`. Para o primeiro teste com `onboarding@resend.dev`, o destino deve ser o endereço da própria conta Resend; para outros destinatários, verifique um domínio no Resend e use um remetente desse domínio. Depois que o e-mail é enviado, o botão abre uma conversa com a equipe RDS no número +55 61 99944 9411 e preenche a mensagem com os dados do cliente e do imóvel. O cliente precisa confirmar o envio no próprio WhatsApp; nenhuma mensagem é enviada automaticamente.
 
 Para ativar:
 

@@ -105,6 +105,8 @@ function propertyInquiryWhatsAppUrl(phone: string, property: Property, customer:
   return `https://wa.me/${normalized}?text=${encodeURIComponent(rows.join('\n'))}`
 }
 
+const propertyInquiryWhatsAppRecipient = '+55 61 99944 9411'
+
 function PropertyCard({ property }: { property: Property }) {
   const sale = property.sale_price != null ? currency(property.sale_price) : null
   const rent = property.rent_price != null ? currency(property.rent_price) : null
@@ -385,7 +387,7 @@ function DetailPage() {
   const images = property.property_images?.length ? property.property_images : [{ id: 'fallback', property_id: id, url: imageFallback, display_order: 0, is_cover: true }]
   const currentProperty = property
   const contactPhone = property.broker?.whatsapp ?? property.broker?.phone ?? property.captor?.whatsapp ?? property.captor?.phone ?? settings.whatsapp
-  const inquiryWhatsAppUrl = contactPhone && inquirySent ? propertyInquiryWhatsAppUrl(contactPhone, property, inquiry) : ''
+  const inquiryWhatsAppUrl = inquirySent ? propertyInquiryWhatsAppUrl(propertyInquiryWhatsAppRecipient, property, inquiry) : ''
   async function submitInquiry(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setInquirySending(true)
@@ -440,7 +442,7 @@ function DetailPage() {
     </div>
     <section className="property-inquiry" aria-labelledby="property-inquiry-title">
       <div className="property-inquiry-copy"><span className="eyebrow gold">FALE COM A RDS</span><h2 id="property-inquiry-title">Gostou deste imóvel?</h2><p>Deixe seus dados para recebermos seu interesse. Enviaremos os detalhes do imóvel e suas informações para nossa equipe.</p></div>
-      {inquirySent ? <div className="inquiry-result success-alert" role="status"><strong>Solicitação enviada!</strong><span>Enviamos os dados do imóvel e seu contato para a equipe RDS.</span>{inquiryWhatsAppUrl ? <a className="button button-dark full-button" href={inquiryWhatsAppUrl} target="_blank" rel="noreferrer"><MessageCircle size={17} /> Enviar também pelo WhatsApp</a> : <span>O WhatsApp do atendimento não está configurado para este imóvel.</span>}</div> : <form className="property-inquiry-form" onSubmit={(event) => void submitInquiry(event)}>
+      {inquirySent ? <div className="inquiry-result success-alert" role="status"><strong>Solicitação enviada!</strong><span>Enviamos os dados do imóvel e seu contato para a equipe RDS.</span><a className="button button-dark full-button" href={inquiryWhatsAppUrl} target="_blank" rel="noreferrer"><MessageCircle size={17} /> Enviar também pelo WhatsApp</a></div> : <form className="property-inquiry-form" onSubmit={(event) => void submitInquiry(event)}>
         {inquiryError && <div className="admin-alert error-alert" role="alert">{inquiryError}</div>}
         <label className="inquiry-honeypot" aria-hidden="true">Não preencher<input name="website" tabIndex={-1} autoComplete="off" /></label>
         <label className="admin-field">Seu nome<input required maxLength={120} autoComplete="name" value={inquiry.name} onChange={(event) => setInquiry((current) => ({ ...current, name: event.target.value }))} placeholder="Nome completo" /></label>
