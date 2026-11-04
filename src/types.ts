@@ -140,7 +140,8 @@ export interface PropertyInquiryInput {
   honeypot: string
 }
 
-export type PropertyInteractionType = 'contact_received' | 'email_sent' | 'visit_requested' | 'visit_completed'
+export type PropertyInteractionType = 'contact_received' | 'email_sent' | 'whatsapp_click' | 'visit_requested' | 'visit_completed'
+export type PropertyInteractionSource = 'property_inquiry' | 'public_property_page' | 'admin_panel'
 
 export interface PropertyInteraction {
   id: string
@@ -156,10 +157,13 @@ export interface PropertyInteraction {
   property_captor_id: string | null
   property_captor_name: string | null
   property_created_at: string
-  interested_name: string
-  interested_email: string
-  interested_phone: string
+  property_broker_id?: string | null
+  property_broker_name?: string | null
+  interested_name: string | null
+  interested_email: string | null
+  interested_phone: string | null
   interaction_type: PropertyInteractionType
+  interaction_source?: PropertyInteractionSource
   occurred_at: string
   status: string | null
   created_at: string

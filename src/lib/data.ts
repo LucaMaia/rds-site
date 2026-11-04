@@ -90,7 +90,7 @@ export async function getPropertyInteractions(from?: string, toExclusive?: strin
   const pageSize = 500
   const interactions: PropertyInteraction[] = []
   for (let fromIndex = 0; ; fromIndex += pageSize) {
-    let query = client.from('property_interactions').select('*').eq('interaction_type', 'email_sent').order('occurred_at', { ascending: false })
+    let query = client.from('property_interactions').select('*').in('interaction_type', ['email_sent', 'whatsapp_click']).order('occurred_at', { ascending: false })
     if (from) query = query.gte('occurred_at', from)
     if (toExclusive) query = query.lt('occurred_at', toExclusive)
     const { data, error } = await query.range(fromIndex, fromIndex + pageSize - 1)
@@ -125,6 +125,15 @@ export async function registerPropertyVisit(interaction: PropertyInteraction, ty
     interested_email: interaction.interested_email,
     interested_phone: interaction.interested_phone,
     interaction_type: type,
+    interaction_source: 'admin_panel',
+  })
+  if (error) throw error
+}
+
+export async function trackPropertyWhatsAppClick(propertyId: string): Promise<void> {
+  const client = requireSupabase()
+  const { error } = await client.functions.invoke('property-inquiry', {
+    body: { action: 'track_whatsapp_click', propertyId },
   })
   if (error) throw error
 }

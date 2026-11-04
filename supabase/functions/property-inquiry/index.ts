@@ -39,9 +39,10 @@ type PropertyRecord = {
   created_at: string
 }
 
-type InteractionType = 'contact_received' | 'email_sent'
+type InteractionType = 'contact_received' | 'email_sent' | 'whatsapp_click'
 
 type InquiryBody = {
+  action?: unknown
   propertyId?: unknown
   name?: unknown
   email?: unknown
@@ -125,7 +126,14 @@ async function recordInteraction(
   }
 }
 
-async function consumeRateLimit(baseUrl: string, serviceKey: string, ip: string) {
+async function consumeRateLimit(
+  baseUrl: string,
+  serviceKey: string,
+  ip: string,
+  limit = 3,
+  windowSeconds = 900,
+  namespace = '',
+) {
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(serviceKey),
@@ -133,7 +141,8 @@ async function consumeRateLimit(baseUrl: string, serviceKey: string, ip: string)
     false,
     ['sign'],
   )
-  const signature = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(ip)))
+  const identity = namespace ? `${namespace}:${ip}` : ip
+  const signature = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(identity)))
   const ipHash = Array.from(signature, (byte) => byte.toString(16).padStart(2, '0')).join('')
   const response = await fetch(`${baseUrl}/rest/v1/rpc/consume_property_inquiry_rate_limit`, {
     method: 'POST',
@@ -142,7 +151,7 @@ async function consumeRateLimit(baseUrl: string, serviceKey: string, ip: string)
       Authorization: `Bearer ${serviceKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ p_ip_hash: ipHash, p_limit: 3, p_window_seconds: 900 }),
+    body: JSON.stringify({ p_ip_hash: ipHash, p_limit: limit, p_window_seconds: windowSeconds }),
   })
   if (!response.ok) {
     console.error(`Inquiry rate-limit check failed: ${response.status}`)
@@ -183,6 +192,55 @@ function propertyRows(property: PropertyRecord, images: string[], broker: Contac
   return rows
 }
 
+async function recordWhatsAppClick(baseUrl: string, serviceKey: string, propertyId: string) {
+  const properties = await restRows<PropertyRecord>(baseUrl, serviceKey, 'public_properties', {
+    select: propertyFields,
+    id: `eq.${propertyId}`,
+    limit: '1',
+  })
+  const property = properties[0]
+  if (!property) throw new HttpError(404, 'Este imóvel não está disponível para contato.')
+
+  const [brokers, captors] = await Promise.all([
+    property.broker_id
+      ? restRows<Pick<ContactRecord, 'name'>>(baseUrl, serviceKey, 'public_brokers', {
+        select: 'name',
+        id: `eq.${property.broker_id}`,
+        limit: '1',
+      })
+      : Promise.resolve([] as Pick<ContactRecord, 'name'>[]),
+    property.captor_id
+      ? restRows<Pick<ContactRecord, 'name'>>(baseUrl, serviceKey, 'public_captors', {
+        select: 'name',
+        id: `eq.${property.captor_id}`,
+        limit: '1',
+      })
+      : Promise.resolve([] as Pick<ContactRecord, 'name'>[]),
+  ])
+  const interaction = {
+    property_id: property.id,
+    property_code: property.code,
+    property_title: property.title,
+    property_neighborhood: property.neighborhood,
+    property_city: property.city,
+    property_state: property.state,
+    property_type: property.type,
+    property_purpose: property.purpose,
+    property_status: property.status,
+    property_captor_id: property.captor_id,
+    property_captor_name: captors[0]?.name ?? null,
+    property_broker_id: property.broker_id,
+    property_broker_name: brokers[0]?.name ?? null,
+    property_created_at: property.created_at,
+    interested_name: null,
+    interested_email: null,
+    interested_phone: null,
+    interaction_type: 'whatsapp_click' satisfies InteractionType,
+    interaction_source: 'public_property_page',
+  }
+  await recordInteraction(baseUrl, serviceKey, interaction)
+}
+
 Deno.serve(async (request) => {
   const origin = request.headers.get('origin') ?? ''
   const allowedOrigins = (Deno.env.get('ALLOWED_ORIGINS') ?? 'https://rds-site.vercel.app,http://localhost:5173,http://127.0.0.1:5173')
@@ -214,13 +272,29 @@ Deno.serve(async (request) => {
     }
 
     const propertyId = typeof body.propertyId === 'string' ? body.propertyId.trim() : ''
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(propertyId)) {
+      throw new HttpError(400, 'O imóvel informado é inválido.')
+    }
+    if (body.action !== undefined && body.action !== 'track_whatsapp_click') {
+      throw new HttpError(400, 'A ação solicitada é inválida.')
+    }
+    if (body.action === 'track_whatsapp_click') {
+      const baseUrl = Deno.env.get('SUPABASE_URL')
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+      if (!baseUrl || !serviceKey) throw new HttpError(503, 'O serviço de contato ainda não está configurado.')
+      const ip = request.headers.get('cf-connecting-ip')?.trim()
+        ?? request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim()
+        ?? request.headers.get('x-real-ip')
+      if (!ip) throw new HttpError(400, 'Não foi possível validar a origem da solicitação.')
+      await consumeRateLimit(baseUrl, serviceKey, ip, 20, 60, 'whatsapp-click')
+      await recordWhatsAppClick(baseUrl, serviceKey, propertyId)
+      return jsonResponse({ ok: true }, 200, origin)
+    }
+
     const name = typeof body.name === 'string' ? body.name.trim() : ''
     const email = typeof body.email === 'string' ? body.email.trim() : ''
     const whatsapp = typeof body.whatsapp === 'string' ? body.whatsapp.trim() : ''
     const phoneDigits = whatsapp.replace(/\D/g, '')
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(propertyId)) {
-      throw new HttpError(400, 'O imóvel informado é inválido.')
-    }
     if (!name || name.length > 120 || /[\r\n]/.test(name)) throw new HttpError(400, 'Informe um nome válido com até 120 caracteres.')
     if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, 'Informe um e-mail válido.')
     if (phoneDigits.length < 10 || phoneDigits.length > 15) throw new HttpError(400, 'Informe um WhatsApp válido com DDD.')
