@@ -90,11 +90,16 @@ export async function getPropertyInteractions(from?: string, toExclusive?: strin
   const pageSize = 500
   const interactions: PropertyInteraction[] = []
   for (let fromIndex = 0; ; fromIndex += pageSize) {
-    let query = client.from('property_interactions').select('*').order('occurred_at', { ascending: false })
+    let query = client.from('property_interactions').select('*').eq('interaction_type', 'email_sent').order('occurred_at', { ascending: false })
     if (from) query = query.gte('occurred_at', from)
     if (toExclusive) query = query.lt('occurred_at', toExclusive)
     const { data, error } = await query.range(fromIndex, fromIndex + pageSize - 1)
-    if (error) throw error
+    if (error) {
+      if (error.code === '42P01' || error.code === 'PGRST205') {
+        throw new Error('O histórico de e-mails ainda não está disponível. Aplique a migration do histórico de interações no Supabase e publique novamente a função property-inquiry.')
+      }
+      throw error
+    }
     interactions.push(...(data ?? []))
     if (!data || data.length < pageSize) break
   }

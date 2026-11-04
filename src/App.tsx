@@ -6,10 +6,10 @@ import {
   KeyRound, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Youtube,
   Square, Trash2, Upload, Users, X,
 } from 'lucide-react'
-import { deleteProperty, deleteTeamMember, getAdminProperties, getPropertyInteractions, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, registerPropertyVisit as savePropertyVisitInteraction, saveProperty, saveSiteSettings, saveTeamMember, sendPropertyInquiry, updatePropertyStatus, updateTeamMember } from './lib/data'
+import { deleteProperty, deleteTeamMember, getAdminProperties, getPropertyInteractions, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveProperty, saveSiteSettings, saveTeamMember, sendPropertyInquiry, updatePropertyStatus, updateTeamMember } from './lib/data'
 import { currency, numberValue, whatsappContactUrl, whatsappUrl, youtubeEmbed } from './lib/format'
 import { supabase } from './lib/supabase'
-import type { Captor, IntegrationPortal, Property, PropertyImage, PropertyInput, PropertyInteraction, PropertyInteractionType, PropertyLink, PropertyStatus } from './types'
+import type { Captor, IntegrationPortal, Property, PropertyImage, PropertyInput, PropertyInteraction, PropertyLink, PropertyStatus } from './types'
 
 const regions = ['Guará', 'Águas Claras', 'Asa Sul', 'Asa Norte', 'Sudoeste', 'Noroeste', 'Lago Sul', 'Lago Norte', 'Taguatinga', 'Ceilândia', 'Samambaia', 'Vicente Pires', 'Park Sul', 'Jardim Botânico']
 const propertyTypes = ['Apartamento', 'Casa', 'Cobertura', 'Terreno', 'Comercial', 'Chácara']
@@ -17,12 +17,6 @@ const statuses: PropertyStatus[] = ['CRIADO', 'PUBLICADO', 'PAUSADO', 'STAND_BY'
 const statusNames: Record<PropertyStatus, string> = {
   CRIADO: 'Criado', PUBLICADO: 'Publicado', PAUSADO: 'Pausado', STAND_BY: 'Stand by',
   VENDIDO: 'Vendido', ALUGADO: 'Alugado', CANCELADO: 'Cancelado',
-}
-const interactionTypeNames: Record<PropertyInteractionType, string> = {
-  contact_received: 'Contato recebido',
-  email_sent: 'E-mail enviado (aceito pelo Resend)',
-  visit_requested: 'Visita solicitada',
-  visit_completed: 'Visita realizada',
 }
 const imageFallback = 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1400&q=85'
 const instagramUrl = 'https://www.instagram.com/rds.imoveis/'
@@ -775,11 +769,11 @@ function AdminPage() {
   const [memberPhotoPreview, setMemberPhotoPreview] = useState('')
   const [selectedMemberId, setSelectedMemberId] = useState('')
   const [reportFilters, setReportFilters] = useState({ status: '', type: '', purpose: '', captor: '', region: '', from: '', to: '' })
-  const [interactionFilters, setInteractionFilters] = useState<{ regions: string[]; types: PropertyInteractionType[]; from: string; to: string }>({ regions: [], types: [], from: '', to: '' })
+  const [interactionFilterDraft, setInteractionFilterDraft] = useState<{ regions: string[]; from: string; to: string }>({ regions: [], from: '', to: '' })
+  const [interactionFilters, setInteractionFilters] = useState<{ regions: string[]; from: string; to: string }>({ regions: [], from: '', to: '' })
   const [propertyInteractions, setPropertyInteractions] = useState<PropertyInteraction[]>([])
   const [interactionsLoading, setInteractionsLoading] = useState(false)
   const [interactionsError, setInteractionsError] = useState('')
-  const [recordingVisitId, setRecordingVisitId] = useState<string | null>(null)
   const [settings, setSettings] = useState({ company_name: 'RDS Imóveis', whatsapp: '', contact_email: '', instagram_url: '' })
   const [settingsError, setSettingsError] = useState('')
   const [settingsSuccess, setSettingsSuccess] = useState('')
@@ -877,25 +871,6 @@ function AdminPage() {
     })
     return () => { active = false }
   }, [authorized, interactionFilters.from, interactionFilters.to, view])
-
-  async function recordVisit(interaction: PropertyInteraction, type: 'visit_requested' | 'visit_completed') {
-    const visitLabel = type === 'visit_requested' ? 'solicitação de visita' : 'visita realizada'
-    if (!window.confirm(`Confirmar que a ${visitLabel} ocorreu para ${interaction.interested_name} no imóvel ${interaction.property_code}? O evento será registrado com a data e horário atuais.`)) return
-    setRecordingVisitId(interaction.id)
-    setInteractionsError('')
-    try {
-      await savePropertyVisitInteraction(interaction, type)
-      const current = await getPropertyInteractions(
-        interactionDateBoundary(interactionFilters.from),
-        interactionDateBoundary(interactionFilters.to, true),
-      )
-      setPropertyInteractions(current)
-    } catch (reason) {
-      setInteractionsError(reason instanceof Error ? reason.message : 'Não foi possível registrar o evento de visita.')
-    } finally {
-      setRecordingVisitId(null)
-    }
-  }
 
   async function login(event: React.FormEvent) {
     event.preventDefault()
@@ -1082,14 +1057,12 @@ function AdminPage() {
     [`state:${property.state.trim().toLocaleLowerCase('pt-BR')}`, `Estado — ${property.state}`],
   ])).entries()).sort((left, right) => left[1].localeCompare(right[1], 'pt-BR'))
   const reportInteractions = propertyInteractions.filter((interaction) => {
-    const createdDate = interaction.property_created_at.slice(0, 10)
+    if (interaction.interaction_type !== 'email_sent') return false
     const matchesExistingFilters = (!reportFilters.status || interaction.property_status === reportFilters.status) &&
       (!reportFilters.type || interaction.property_type === reportFilters.type) &&
       (!reportFilters.purpose || interaction.property_purpose === reportFilters.purpose || interaction.property_purpose === 'AMBOS') &&
       (!reportFilters.captor || interaction.property_captor_id === reportFilters.captor) &&
-      (!reportFilters.region || interaction.property_neighborhood.toLocaleLowerCase('pt-BR').includes(reportFilters.region.toLocaleLowerCase('pt-BR'))) &&
-      (!reportFilters.from || createdDate >= reportFilters.from) &&
-      (!reportFilters.to || createdDate <= reportFilters.to)
+      (!reportFilters.region || interaction.property_neighborhood.toLocaleLowerCase('pt-BR').includes(reportFilters.region.toLocaleLowerCase('pt-BR')))
     const normalizedNeighborhood = interaction.property_neighborhood.trim().toLocaleLowerCase('pt-BR')
     const normalizedCity = interaction.property_city.trim().toLocaleLowerCase('pt-BR')
     const normalizedState = interaction.property_state.trim().toLocaleLowerCase('pt-BR')
@@ -1099,8 +1072,7 @@ function AdminPage() {
         : kind === 'city' ? normalizedCity === value
           : kind === 'state' ? normalizedState === value : false
     })
-    const matchesInteractionTypes = !interactionFilters.types.length || interactionFilters.types.includes(interaction.interaction_type)
-    return matchesExistingFilters && matchesSelectedRegions && matchesInteractionTypes
+    return matchesExistingFilters && matchesSelectedRegions
   })
   const captorCounts = Object.entries(reportProperties.reduce<Record<string, number>>((acc, property) => {
     const name = property.captor?.name ?? 'Sem captador'
@@ -1123,31 +1095,42 @@ function AdminPage() {
         {dataError && <div className="admin-alert error-alert">{dataError}<button onClick={() => setDataError('')} aria-label="Fechar"><X size={15} /></button></div>}
         {loadingData && <div className="admin-loading-inline"><span className="spinner" />Atualizando dados...</div>}
         {view === 'reports' && <section className="interaction-report-section">
-          <div className="admin-page-heading"><div><span className="eyebrow gold">CONTATOS E INTERAÇÕES</span><h2>Interessados por imóvel</h2><p>Consulte cada interação registrada, sem agrupar contatos repetidos.</p></div></div>
+          <div className="admin-page-heading"><div><span className="eyebrow gold">E-MAILS ENVIADOS</span><h2>Interessados por imóvel</h2><p>Mostra cada e-mail aceito pelo serviço de envio, sem agrupar contatos repetidos.</p></div></div>
           <div className="admin-panel report-filter-panel interaction-filter-panel">
             <div className="admin-filters">
-              <label className="interaction-multiselect">Região (bairros, cidades e estados)
-                <select multiple value={interactionFilters.regions} onChange={(event) => setInteractionFilters((current) => ({ ...current, regions: Array.from(event.target.selectedOptions, (option) => option.value) }))}>
-                  {interactionRegionOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
-              </label>
-              <label className="report-date">Interação desde<input type="date" value={interactionFilters.from} onChange={(event) => setInteractionFilters((current) => ({ ...current, from: event.target.value }))} /></label>
-              <label className="report-date">Interação até<input type="date" value={interactionFilters.to} onChange={(event) => setInteractionFilters((current) => ({ ...current, to: event.target.value }))} /></label>
-              <label className="interaction-multiselect">Tipo de interação
-                <select multiple value={interactionFilters.types} onChange={(event) => setInteractionFilters((current) => ({ ...current, types: Array.from(event.target.selectedOptions, (option) => option.value as PropertyInteractionType) }))}>
-                  {(Object.entries(interactionTypeNames) as Array<[PropertyInteractionType, string]>).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
-              </label>
-              <button type="button" className="clear-button" onClick={() => setInteractionFilters({ regions: [], types: [], from: '', to: '' })}>Limpar novos filtros</button>
+              <div className="interaction-region-picker">
+                <span>Região (bairros, cidades e estados)</span>
+                <details>
+                  <summary>{interactionFilterDraft.regions.length ? `${interactionFilterDraft.regions.length} região(ões) selecionada(s)` : 'Todas as regiões'}</summary>
+                  <div className="interaction-region-options">
+                    {interactionRegionOptions.length ? interactionRegionOptions.map(([value, label]) => <label key={value}>
+                      <input type="checkbox" checked={interactionFilterDraft.regions.includes(value)} onChange={(event) => setInteractionFilterDraft((current) => ({
+                        ...current,
+                        regions: event.target.checked ? [...current.regions, value] : current.regions.filter((region) => region !== value),
+                      }))} />
+                      <span>{label}</span>
+                    </label>) : <span className="interaction-region-empty">Nenhuma região cadastrada.</span>}
+                  </div>
+                </details>
+              </div>
+              <label className="report-date">Interação desde<input type="date" value={interactionFilterDraft.from} onChange={(event) => setInteractionFilterDraft((current) => ({ ...current, from: event.target.value }))} /></label>
+              <label className="report-date">Interação até<input type="date" value={interactionFilterDraft.to} onChange={(event) => setInteractionFilterDraft((current) => ({ ...current, to: event.target.value }))} /></label>
+              <button type="button" className="button button-dark interaction-apply-button" disabled={interactionsLoading || Boolean(interactionFilterDraft.from && interactionFilterDraft.to && interactionFilterDraft.from > interactionFilterDraft.to)} onClick={() => setInteractionFilters(interactionFilterDraft)}><Filter size={15} /> Filtrar</button>
+              <button type="button" className="clear-button" onClick={() => {
+                const clearedFilters = { regions: [], from: '', to: '' }
+                setInteractionFilterDraft(clearedFilters)
+                setInteractionFilters(clearedFilters)
+              }}>Limpar</button>
             </div>
-            <p className="interaction-filter-note">Os filtros de imóvel existentes no restante da área de Relatórios também se aplicam a esta lista. As datas de interação são independentes das datas de cadastro do imóvel. Para selecionar várias opções, use Ctrl (Windows) ou Command (Mac). Eventos de visita são registrados manualmente somente após confirmação do administrador.</p>
+            {interactionFilterDraft.from && interactionFilterDraft.to && interactionFilterDraft.from > interactionFilterDraft.to && <p className="interaction-filter-error" role="alert">A data inicial deve ser anterior ou igual à data final.</p>}
+            <p className="interaction-filter-note">Marque uma ou mais regiões no menu. Região e período só serão aplicados ao clicar em Filtrar. Os demais filtros de imóvel do relatório continuam funcionando; as datas desta busca usam o momento do envio do e-mail, não a data de cadastro do imóvel.</p>
           </div>
           {interactionsError && <div className="admin-alert error-alert" role="alert">{interactionsError}</div>}
           {interactionsLoading && <div className="admin-loading-inline"><span className="spinner" />Carregando interações...</div>}
           <div className="admin-panel listing-panel interaction-listing">
-            <div className="panel-heading"><div><h2>{reportInteractions.length} interações encontradas</h2><p>Eventos registrados no sistema; cada linha corresponde a uma interação distinta.</p></div><button type="button" className="button button-outline" disabled={!reportInteractions.length} onClick={() => {
+            <div className="panel-heading"><div><h2>{reportInteractions.length} e-mails encontrados</h2><p>Cada linha corresponde a um e-mail aceito pelo serviço de envio; isso não confirma a entrega na caixa postal.</p></div><button type="button" className="button button-outline" disabled={!reportInteractions.length} onClick={() => {
               const rows: Array<Array<string | number>> = [
-                ['Nome', 'E-mail', 'Telefone', 'Imóvel', 'Região', 'Data e horário', 'Tipo de interação', 'Status do atendimento'],
+                ['Nome', 'E-mail', 'Telefone', 'Imóvel', 'Região', 'Data e horário', 'Status do atendimento'],
                 ...reportInteractions.map((interaction) => [
                   interaction.interested_name,
                   interaction.interested_email,
@@ -1155,15 +1138,14 @@ function AdminPage() {
                   `${interaction.property_code} - ${interaction.property_title}`,
                   `${interaction.property_neighborhood}, ${interaction.property_city} - ${interaction.property_state}`,
                   new Date(interaction.occurred_at).toLocaleString('pt-BR'),
-                  interactionTypeNames[interaction.interaction_type],
                   interaction.status ?? '',
                 ]),
               ]
-              downloadCsv('relatorio-interacoes.csv', rows)
+              downloadCsv('relatorio-emails-enviados.csv', rows)
             }}><ArrowDown size={15} /> Exportar CSV</button></div>
-            <div className="table-scroll interaction-table-scroll"><table className="property-table interaction-table"><thead><tr><th>Interessado</th><th>E-mail</th><th>Telefone</th><th>Imóvel</th><th>Região</th><th>Data e horário</th><th>Tipo</th><th>Status</th><th>Registrar visita</th></tr></thead><tbody>
-              {reportInteractions.map((interaction) => <tr key={interaction.id}><td>{interaction.interested_name}</td><td>{interaction.interested_email}</td><td>{interaction.interested_phone}</td><td><strong>{interaction.property_code}</strong><small>{interaction.property_title}</small></td><td>{interaction.property_neighborhood}<small>{interaction.property_city} - {interaction.property_state}</small></td><td>{new Date(interaction.occurred_at).toLocaleString('pt-BR')}</td><td>{interactionTypeNames[interaction.interaction_type]}</td><td>{interaction.status ?? '—'}</td><td>{interaction.interaction_type === 'contact_received' ? <div className="interaction-visit-actions"><button type="button" className="text-link" disabled={recordingVisitId === interaction.id} onClick={() => void recordVisit(interaction, 'visit_requested')}>Solicitada</button><button type="button" className="text-link" disabled={recordingVisitId === interaction.id} onClick={() => void recordVisit(interaction, 'visit_completed')}>Realizada</button>{recordingVisitId === interaction.id && <small>Registrando...</small>}</div> : interaction.interaction_type === 'visit_requested' ? <button type="button" className="text-link" disabled={recordingVisitId === interaction.id} onClick={() => void recordVisit(interaction, 'visit_completed')}>{recordingVisitId === interaction.id ? 'Registrando...' : 'Marcar realizada'}</button> : '—'}</td></tr>)}
-              {!reportInteractions.length && !interactionsLoading && <tr><td colSpan={9}><div className="table-empty">{interactionsError ? 'Não foi possível carregar as interações.' : 'Nenhuma interação registrada corresponde aos filtros.'}</div></td></tr>}
+            <div className="table-scroll interaction-table-scroll"><table className="property-table interaction-table"><thead><tr><th>Interessado</th><th>E-mail</th><th>Telefone</th><th>Imóvel</th><th>Região</th><th>Data e horário</th><th>Status do atendimento</th></tr></thead><tbody>
+              {reportInteractions.map((interaction) => <tr key={interaction.id}><td>{interaction.interested_name}</td><td>{interaction.interested_email}</td><td>{interaction.interested_phone}</td><td><strong>{interaction.property_code}</strong><small>{interaction.property_title}</small></td><td>{interaction.property_neighborhood}<small>{interaction.property_city} - {interaction.property_state}</small></td><td>{new Date(interaction.occurred_at).toLocaleString('pt-BR')}</td><td>{interaction.status ?? '—'}</td></tr>)}
+              {!reportInteractions.length && !interactionsLoading && <tr><td colSpan={7}><div className="table-empty">{interactionsError ? 'Não foi possível carregar os e-mails.' : 'Nenhum e-mail enviado corresponde aos filtros. Se esperava resultados, confirme se a migration foi aplicada e a função atualizada foi publicada; envios anteriores não são recuperados.'}</div></td></tr>}
             </tbody></table></div>
           </div>
         </section>}
