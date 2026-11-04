@@ -48,7 +48,7 @@ O acesso administrativo usa Supabase Auth; nenhum cadastro público de usuários
 
 ## Contato por e-mail e WhatsApp
 
-O formulário público usa a Supabase Edge Function `property-inquiry`. O destinatário do e-mail é o contato configurado no painel; se estiver vazio, usa `lucamaia2007@hotmail.com`. O WhatsApp é aberto com a mensagem pronta para o corretor atribuído (ou contato disponível), mas o cliente precisa confirmar o envio no próprio WhatsApp.
+O formulário público usa a Supabase Edge Function `property-inquiry`. O destinatário do e-mail é o contato configurado no painel; se estiver vazio, usa `lucamaia2007@hotmail.com`. Para o primeiro teste com `onboarding@resend.dev`, o destino deve ser o endereço da própria conta Resend; para outros destinatários, verifique um domínio no Resend e use um remetente desse domínio. O WhatsApp é aberto com a mensagem pronta para o corretor atribuído (ou contato disponível), mas o cliente precisa confirmar o envio no próprio WhatsApp.
 
 Para ativar:
 

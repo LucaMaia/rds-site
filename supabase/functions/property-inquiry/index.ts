@@ -278,8 +278,33 @@ Deno.serve(async (request) => {
       }),
     })
     if (!delivery.ok) {
-      console.error(`Resend delivery failed: ${delivery.status}`)
-      throw new HttpError(502, 'Não foi possível enviar o e-mail. Tente novamente ou fale com o atendimento pelo WhatsApp.')
+      const responseBody = await delivery.text()
+      let providerMessage = ''
+      let providerName = ''
+      try {
+        const providerError: unknown = JSON.parse(responseBody)
+        if (providerError && typeof providerError === 'object') {
+          if ('message' in providerError && typeof providerError.message === 'string') providerMessage = providerError.message
+          if ('name' in providerError && typeof providerError.name === 'string') providerName = providerError.name
+        }
+      } catch {
+        providerMessage = ''
+      }
+
+      console.error('Resend delivery rejected:', { status: delivery.status, errorType: providerName || 'unknown' })
+      if (delivery.status === 401) {
+        throw new HttpError(502, 'O Resend recusou a chave de API. Confira o secret RESEND_API_KEY no Supabase.')
+      }
+      if (/testing emails|own email address|verify a domain/i.test(providerMessage)) {
+        throw new HttpError(502, 'O remetente de teste do Resend só permite enviar para o e-mail da sua conta Resend. Para testar, configure esse e-mail como contato do site; para outros destinatários, verifique um domínio no Resend e use um remetente desse domínio.')
+      }
+      if (/domain|verified|sender|from address/i.test(providerMessage)) {
+        throw new HttpError(502, 'O Resend recusou o remetente. Verifique um domínio em Resend → Domains e configure RESEND_FROM_EMAIL com um endereço desse domínio.')
+      }
+      if (delivery.status === 429) {
+        throw new HttpError(502, 'O Resend atingiu o limite de envio da conta. Confira os limites e a atividade em Resend → Logs/Usage.')
+      }
+      throw new HttpError(502, `O Resend recusou o e-mail (HTTP ${delivery.status}). Confira Resend → Logs para ver o motivo.`)
     }
     return jsonResponse({ ok: true }, 200, origin)
   } catch (reason) {
