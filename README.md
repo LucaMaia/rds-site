@@ -17,6 +17,8 @@ npm run dev
 
 Sem variáveis do Supabase, a vitrine usa os dois imóveis fictícios definidos em [src/lib/demo.ts](./src/lib/demo.ts). Esse modo é apenas para visualização: não habilita login, gravação nem persistência local.
 
+Na Vercel, [vercel.json](./vercel.json) reescreve rotas SPA para o app, permitindo abrir diretamente e compartilhar links de imóveis.
+
 ## Preparar o Supabase
 
 1. Crie um projeto Supabase.
