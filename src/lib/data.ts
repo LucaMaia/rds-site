@@ -85,12 +85,17 @@ export async function getTeam(): Promise<Captor[]> {
   return [...(captors.data ?? []), ...(brokers.data ?? []).map((broker) => ({ ...broker, name: `${broker.name} · corretor` }))]
 }
 
-export async function getPropertyInteractions(from?: string, toExclusive?: string): Promise<PropertyInteraction[]> {
+export async function getPropertyInteractions(
+  from?: string,
+  toExclusive?: string,
+  interactionType?: Extract<PropertyInteractionType, 'email_sent' | 'whatsapp_click'>,
+): Promise<PropertyInteraction[]> {
   const client = requireSupabase()
   const pageSize = 500
   const interactions: PropertyInteraction[] = []
+  const interactionTypes: PropertyInteractionType[] = interactionType ? [interactionType] : ['email_sent', 'whatsapp_click']
   for (let fromIndex = 0; ; fromIndex += pageSize) {
-    let query = client.from('property_interactions').select('*').in('interaction_type', ['email_sent', 'whatsapp_click']).order('occurred_at', { ascending: false })
+    let query = client.from('property_interactions').select('*').in('interaction_type', interactionTypes).order('occurred_at', { ascending: false })
     if (from) query = query.gte('occurred_at', from)
     if (toExclusive) query = query.lt('occurred_at', toExclusive)
     const { data, error } = await query.range(fromIndex, fromIndex + pageSize - 1)

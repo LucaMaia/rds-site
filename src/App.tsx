@@ -147,6 +147,19 @@ function interactionDateBoundary(date: string, endExclusive = false): string | u
   return boundary.toISOString()
 }
 
+function interactionMatchesRegions(interaction: PropertyInteraction, regions: string[]): boolean {
+  if (!regions.length) return true
+  const neighborhood = interaction.property_neighborhood.trim().toLocaleLowerCase('pt-BR')
+  const city = interaction.property_city.trim().toLocaleLowerCase('pt-BR')
+  const state = interaction.property_state.trim().toLocaleLowerCase('pt-BR')
+  return regions.some((region) => {
+    const [kind, value] = region.split(':', 2)
+    return kind === 'neighborhood' ? neighborhood === value
+      : kind === 'city' ? city === value
+        : kind === 'state' ? state === value : false
+  })
+}
+
 const propertyInquiryWhatsAppRecipient = '+55 61 99944 9411'
 
 function PropertyCard({ property }: { property: Property }) {
@@ -852,11 +865,18 @@ function AdminPage() {
   const [memberPhotoPreview, setMemberPhotoPreview] = useState('')
   const [selectedMemberId, setSelectedMemberId] = useState('')
   const [reportFilters, setReportFilters] = useState({ status: '', type: '', purpose: '', captor: '', region: '', from: '', to: '' })
-  const [interactionFilterDraft, setInteractionFilterDraft] = useState<{ regions: string[]; from: string; to: string; purpose: 'all' | 'email_sent' | 'whatsapp_click'; propertyId: string }>({ regions: [], from: '', to: '', purpose: 'all', propertyId: '' })
-  const [interactionFilters, setInteractionFilters] = useState<{ regions: string[]; from: string; to: string; purpose: 'all' | 'email_sent' | 'whatsapp_click'; propertyId: string }>({ regions: [], from: '', to: '', purpose: 'all', propertyId: '' })
-  const [propertyInteractions, setPropertyInteractions] = useState<PropertyInteraction[]>([])
-  const [interactionsLoading, setInteractionsLoading] = useState(false)
-  const [interactionsError, setInteractionsError] = useState('')
+  const [emailFilterDraft, setEmailFilterDraft] = useState<{ regions: string[]; from: string; to: string }>({ regions: [], from: '', to: '' })
+  const [emailFilters, setEmailFilters] = useState<{ regions: string[]; from: string; to: string }>({ regions: [], from: '', to: '' })
+  const [whatsappFilterDraft, setWhatsappFilterDraft] = useState<{ regions: string[]; from: string; to: string; propertyId: string }>({ regions: [], from: '', to: '', propertyId: '' })
+  const [whatsappFilters, setWhatsappFilters] = useState<{ regions: string[]; from: string; to: string; propertyId: string }>({ regions: [], from: '', to: '', propertyId: '' })
+  const [emailInteractions, setEmailInteractions] = useState<PropertyInteraction[]>([])
+  const [whatsappInteractions, setWhatsappInteractions] = useState<PropertyInteraction[]>([])
+  const [emailInteractionsLoading, setEmailInteractionsLoading] = useState(false)
+  const [whatsappInteractionsLoading, setWhatsappInteractionsLoading] = useState(false)
+  const [emailInteractionsError, setEmailInteractionsError] = useState('')
+  const [whatsappInteractionsError, setWhatsappInteractionsError] = useState('')
+  const [emailRefreshKey, setEmailRefreshKey] = useState(0)
+  const [whatsappRefreshKey, setWhatsappRefreshKey] = useState(0)
   const [settings, setSettings] = useState({ company_name: 'RDS Imóveis', whatsapp: '', contact_email: '', instagram_url: '' })
   const [settingsError, setSettingsError] = useState('')
   const [settingsSuccess, setSettingsSuccess] = useState('')
@@ -864,6 +884,7 @@ function AdminPage() {
   const [memberSuccess, setMemberSuccess] = useState('')
   const [reportPropertyPage, setReportPropertyPage] = useState(1)
   const [reportEmailPage, setReportEmailPage] = useState(1)
+  const [reportWhatsAppPage, setReportWhatsAppPage] = useState(1)
   const [propertyListPage, setPropertyListPage] = useState(1)
   useEffect(() => {
     if (!memberPhoto) { setMemberPhotoPreview(''); return }
@@ -872,7 +893,8 @@ function AdminPage() {
     return () => URL.revokeObjectURL(previewUrl)
   }, [memberPhoto])
   useEffect(() => { setReportPropertyPage(1) }, [reportFilters])
-  useEffect(() => { setReportEmailPage(1) }, [reportFilters, interactionFilters])
+  useEffect(() => { setReportEmailPage(1) }, [reportFilters, emailFilters])
+  useEffect(() => { setReportWhatsAppPage(1) }, [reportFilters, whatsappFilters])
   useEffect(() => { setPropertyListPage(1) }, [filter])
   const view = searchParams.get('view') ?? 'overview'
   const [editorOpened, setEditorOpened] = useState(() => searchParams.get('view') === 'editor')
@@ -946,20 +968,40 @@ function AdminPage() {
   useEffect(() => {
     if (view !== 'reports' || !authorized) return
     let active = true
-    setInteractionsLoading(true)
-    setInteractionsError('')
+    setEmailInteractionsLoading(true)
+    setEmailInteractionsError('')
     getPropertyInteractions(
-      interactionDateBoundary(interactionFilters.from),
-      interactionDateBoundary(interactionFilters.to, true),
+      interactionDateBoundary(emailFilters.from),
+      interactionDateBoundary(emailFilters.to, true),
+      'email_sent',
     ).then((items) => {
-      if (active) setPropertyInteractions(items)
+      if (active) setEmailInteractions(items)
     }).catch((reason) => {
-      if (active) setInteractionsError(reason instanceof Error ? reason.message : 'Não foi possível carregar as interações.')
+      if (active) setEmailInteractionsError(reason instanceof Error ? reason.message : 'Não foi possível carregar os e-mails.')
     }).finally(() => {
-      if (active) setInteractionsLoading(false)
+      if (active) setEmailInteractionsLoading(false)
     })
     return () => { active = false }
-  }, [authorized, interactionFilters.from, interactionFilters.to, view])
+  }, [authorized, emailFilters.from, emailFilters.to, emailRefreshKey, view])
+
+  useEffect(() => {
+    if (view !== 'reports' || !authorized) return
+    let active = true
+    setWhatsappInteractionsLoading(true)
+    setWhatsappInteractionsError('')
+    getPropertyInteractions(
+      interactionDateBoundary(whatsappFilters.from),
+      interactionDateBoundary(whatsappFilters.to, true),
+      'whatsapp_click',
+    ).then((items) => {
+      if (active) setWhatsappInteractions(items)
+    }).catch((reason) => {
+      if (active) setWhatsappInteractionsError(reason instanceof Error ? reason.message : 'Não foi possível carregar os cliques do WhatsApp.')
+    }).finally(() => {
+      if (active) setWhatsappInteractionsLoading(false)
+    })
+    return () => { active = false }
+  }, [authorized, whatsappFilters.from, whatsappFilters.to, whatsappRefreshKey, view])
 
   async function login(event: React.FormEvent) {
     event.preventDefault()
@@ -1151,31 +1193,30 @@ function AdminPage() {
     [`city:${property.city.trim().toLocaleLowerCase('pt-BR')}`, `Cidade — ${property.city} - ${property.state}`],
     [`state:${property.state.trim().toLocaleLowerCase('pt-BR')}`, `Estado — ${property.state}`],
   ])).entries()).sort((left, right) => left[1].localeCompare(right[1], 'pt-BR'))
-  const reportInteractions = propertyInteractions.filter((interaction) => {
-    if (interaction.interaction_type !== 'email_sent' && interaction.interaction_type !== 'whatsapp_click') return false
-    if (interactionFilters.purpose !== 'all' && interaction.interaction_type !== interactionFilters.purpose) return false
-    if (interactionFilters.propertyId && interaction.property_id !== interactionFilters.propertyId) return false
+  const reportInteractions = emailInteractions.filter((interaction) => {
     const matchesExistingFilters = (!reportFilters.status || interaction.property_status === reportFilters.status) &&
       (!reportFilters.type || interaction.property_type === reportFilters.type) &&
       (!reportFilters.purpose || interaction.property_purpose === reportFilters.purpose || interaction.property_purpose === 'AMBOS') &&
       (!reportFilters.captor || interaction.property_captor_id === reportFilters.captor) &&
       (!reportFilters.region || interaction.property_neighborhood.toLocaleLowerCase('pt-BR').includes(reportFilters.region.toLocaleLowerCase('pt-BR')))
-    const normalizedNeighborhood = interaction.property_neighborhood.trim().toLocaleLowerCase('pt-BR')
-    const normalizedCity = interaction.property_city.trim().toLocaleLowerCase('pt-BR')
-    const normalizedState = interaction.property_state.trim().toLocaleLowerCase('pt-BR')
-    const matchesSelectedRegions = !interactionFilters.regions.length || interactionFilters.regions.some((region) => {
-      const [kind, value] = region.split(':', 2)
-      return kind === 'neighborhood' ? normalizedNeighborhood === value
-        : kind === 'city' ? normalizedCity === value
-          : kind === 'state' ? normalizedState === value : false
-    })
-    return matchesExistingFilters && matchesSelectedRegions
+    return matchesExistingFilters && interactionMatchesRegions(interaction, emailFilters.regions)
   })
   const reportEmailPageCount = Math.max(1, Math.ceil(reportInteractions.length / 5))
   const currentReportEmailPage = Math.min(reportEmailPage, reportEmailPageCount)
   const paginatedReportInteractions = reportInteractions.slice((currentReportEmailPage - 1) * 5, currentReportEmailPage * 5)
-  const whatsappClickCounts = Object.entries(reportInteractions
-    .filter((interaction) => interaction.interaction_type === 'whatsapp_click')
+  const reportWhatsAppInteractions = whatsappInteractions.filter((interaction) => {
+    const matchesExistingFilters = (!reportFilters.status || interaction.property_status === reportFilters.status) &&
+      (!reportFilters.type || interaction.property_type === reportFilters.type) &&
+      (!reportFilters.purpose || interaction.property_purpose === reportFilters.purpose || interaction.property_purpose === 'AMBOS') &&
+      (!reportFilters.captor || interaction.property_captor_id === reportFilters.captor) &&
+      (!reportFilters.region || interaction.property_neighborhood.toLocaleLowerCase('pt-BR').includes(reportFilters.region.toLocaleLowerCase('pt-BR')))
+    return (!whatsappFilters.propertyId || interaction.property_id === whatsappFilters.propertyId) &&
+      matchesExistingFilters && interactionMatchesRegions(interaction, whatsappFilters.regions)
+  })
+  const reportWhatsAppPageCount = Math.max(1, Math.ceil(reportWhatsAppInteractions.length / 5))
+  const currentReportWhatsAppPage = Math.min(reportWhatsAppPage, reportWhatsAppPageCount)
+  const paginatedReportWhatsAppInteractions = reportWhatsAppInteractions.slice((currentReportWhatsAppPage - 1) * 5, currentReportWhatsAppPage * 5)
+  const whatsappClickCounts = Object.entries(reportWhatsAppInteractions
     .reduce<Record<string, number>>((acc, interaction) => {
       const propertyName = `${interaction.property_code} - ${interaction.property_title}`
       acc[propertyName] = (acc[propertyName] ?? 0) + 1
@@ -1204,16 +1245,17 @@ function AdminPage() {
         {dataError && <div className="admin-alert error-alert">{dataError}<button onClick={() => setDataError('')} aria-label="Fechar"><X size={15} /></button></div>}
         {loadingData && <div className="admin-loading-inline"><span className="spinner" />Atualizando dados...</div>}
         {view === 'reports' && <section className="interaction-report-section">
-          <div className="admin-page-heading"><div><span className="eyebrow gold">E-MAILS E WHATSAPP</span><h2>Interessados por imóvel</h2><p>Consulte cada e-mail aceito pelo serviço de envio e cada clique registrado no WhatsApp, sem agrupar eventos.</p></div></div>
-          <div className="admin-panel report-filter-panel interaction-filter-panel">
-            <div className="admin-filters">
+          <div className="admin-page-heading"><div><span className="eyebrow gold">RELATÓRIOS DE CONTATO</span><h2>Interessados por imóvel</h2><p>Os relatórios de e-mail e WhatsApp têm filtros e exportações separados.</p></div></div>
+          <div className="admin-panel report-filter-panel interaction-filter-panel interaction-report-card">
+            <div className="panel-heading"><div><h2>E-mails enviados</h2><p>Filtre e exporte os e-mails aceitos pelo serviço de envio.</p></div></div>
+            <div className="interaction-filter-fields">
               <div className="interaction-region-picker">
                 <span>Região (bairros, cidades e estados)</span>
                 <details>
-                  <summary>{interactionFilterDraft.regions.length ? `${interactionFilterDraft.regions.length} região(ões) selecionada(s)` : 'Todas as regiões'}</summary>
+                  <summary>{emailFilterDraft.regions.length ? `${emailFilterDraft.regions.length} região(ões) selecionada(s)` : 'Todas as regiões'}</summary>
                   <div className="interaction-region-options">
                     {interactionRegionOptions.length ? interactionRegionOptions.map(([value, label]) => <label key={value}>
-                      <input type="checkbox" checked={interactionFilterDraft.regions.includes(value)} onChange={(event) => setInteractionFilterDraft((current) => ({
+                      <input type="checkbox" checked={emailFilterDraft.regions.includes(value)} onChange={(event) => setEmailFilterDraft((current) => ({
                         ...current,
                         regions: event.target.checked ? [...current.regions, value] : current.regions.filter((region) => region !== value),
                       }))} />
@@ -1222,41 +1264,25 @@ function AdminPage() {
                   </div>
                 </details>
               </div>
-              <label className="admin-field">Finalidade da interação
-                <select value={interactionFilterDraft.purpose} onChange={(event) => setInteractionFilterDraft((current) => ({ ...current, purpose: event.target.value as 'all' | 'email_sent' | 'whatsapp_click' }))}>
-                  <option value="all">Todas</option>
-                  <option value="email_sent">E-mail enviado</option>
-                  <option value="whatsapp_click">Clique no WhatsApp</option>
-                </select>
-              </label>
-              <label className="admin-field">Imóvel
-                <select value={interactionFilterDraft.propertyId} onChange={(event) => setInteractionFilterDraft((current) => ({ ...current, propertyId: event.target.value }))}>
-                  <option value="">Todos os imóveis</option>
-                  {properties.map((property) => <option key={property.id} value={property.id}>{property.code} — {property.title}</option>)}
-                </select>
-              </label>
-              <label className="report-date">Interação desde<input type="date" value={interactionFilterDraft.from} onChange={(event) => setInteractionFilterDraft((current) => ({ ...current, from: event.target.value }))} /></label>
-              <label className="report-date">Interação até<input type="date" value={interactionFilterDraft.to} onChange={(event) => setInteractionFilterDraft((current) => ({ ...current, to: event.target.value }))} /></label>
-              <button type="button" className="button button-dark interaction-apply-button" disabled={interactionsLoading || Boolean(interactionFilterDraft.from && interactionFilterDraft.to && interactionFilterDraft.from > interactionFilterDraft.to)} onClick={() => setInteractionFilters(interactionFilterDraft)}><Filter size={15} /> Filtrar</button>
-              <button type="button" className="clear-button" onClick={() => {
-                const clearedFilters = { regions: [], from: '', to: '', purpose: 'all' as const, propertyId: '' }
-                setInteractionFilterDraft(clearedFilters)
-                setInteractionFilters(clearedFilters)
-              }}>Limpar</button>
+              <label className="report-date">Data inicial<input type="date" value={emailFilterDraft.from} onChange={(event) => setEmailFilterDraft((current) => ({ ...current, from: event.target.value }))} /></label>
+              <label className="report-date">Data final<input type="date" value={emailFilterDraft.to} onChange={(event) => setEmailFilterDraft((current) => ({ ...current, to: event.target.value }))} /></label>
+              <div className="interaction-filter-actions">
+                <button type="button" className="button button-dark interaction-apply-button" disabled={emailInteractionsLoading || Boolean(emailFilterDraft.from && emailFilterDraft.to && emailFilterDraft.from > emailFilterDraft.to)} onClick={() => { setEmailFilters(emailFilterDraft); setEmailRefreshKey((key) => key + 1) }}><Filter size={15} /> Filtrar e-mails</button>
+                <button type="button" className="clear-button" onClick={() => {
+                  const clearedFilters = { regions: [], from: '', to: '' }
+                  setEmailFilterDraft(clearedFilters)
+                  setEmailFilters(clearedFilters)
+                  setEmailRefreshKey((key) => key + 1)
+                }}>Limpar filtros</button>
+              </div>
             </div>
-            {interactionFilterDraft.from && interactionFilterDraft.to && interactionFilterDraft.from > interactionFilterDraft.to && <p className="interaction-filter-error" role="alert">A data inicial deve ser anterior ou igual à data final.</p>}
-            <p className="interaction-filter-note">Selecione finalidade, imóvel, uma ou mais regiões e o período; os filtros serão aplicados ao clicar em Filtrar. Os filtros atuais do relatório continuam funcionando em conjunto. O período usa a data efetiva de cada interação.</p>
-          </div>
-          {interactionsError && <div className="admin-alert error-alert" role="alert">{interactionsError}</div>}
-          {interactionsLoading && <div className="admin-loading-inline"><span className="spinner" />Carregando interações...</div>}
-          {interactionFilters.purpose !== 'email_sent' && <div className="admin-panel listing-panel">
-            <div className="panel-heading"><div><h2>Imóveis com mais cliques no WhatsApp</h2><p>Contagem de cliques únicos registrados por evento, conforme os filtros aplicados.</p></div></div>
-            {whatsappClickCounts.length ? <div className="status-chart">{whatsappClickCounts.slice(0, 8).map(([name, count]) => <div className="status-bar-row" key={name}><span>{name}</span><div className="bar-track"><div className="bar-fill" style={{ width: `${count / maxWhatsAppClicks * 100}%` }} /></div><strong>{count}</strong></div>)}</div> : <p className="muted-empty">Nenhum clique no WhatsApp corresponde aos filtros.</p>}
-          </div>}
-          <div className="admin-panel listing-panel interaction-listing">
-            <div className="panel-heading"><div><h2>{reportInteractions.length} interações encontradas</h2><p>E-mails enviados e cliques no WhatsApp são eventos separados; um clique não informa nome, telefone ou envio de mensagem.</p></div><button type="button" className="button button-outline" disabled={!reportInteractions.length} onClick={() => {
+            {emailFilterDraft.from && emailFilterDraft.to && emailFilterDraft.from > emailFilterDraft.to && <p className="interaction-filter-error" role="alert">A data inicial deve ser anterior ou igual à data final.</p>}
+            <p className="interaction-filter-note">Os filtros de região e período são aplicados somente ao relatório de e-mails. Cada linha corresponde a um e-mail aceito pelo serviço, sem confirmar entrega na caixa postal.</p>
+            {emailInteractionsError && <div className="admin-alert error-alert" role="alert">{emailInteractionsError}</div>}
+            {emailInteractionsLoading && <div className="admin-loading-inline"><span className="spinner" />Carregando e-mails...</div>}
+            <div className="panel-heading interaction-results-heading"><div><h3>{reportInteractions.length} e-mails encontrados</h3></div><button type="button" className="button button-outline" disabled={!reportInteractions.length} onClick={() => {
               const rows: Array<Array<string | number>> = [
-                ['Nome', 'E-mail', 'Telefone', 'Imóvel', 'Região', 'Data e horário', 'Tipo de interação', 'Origem', 'Status do atendimento'],
+                ['Nome', 'E-mail', 'Telefone', 'Imóvel', 'Região', 'Data e horário', 'Status do atendimento'],
                 ...reportInteractions.map((interaction) => [
                   interaction.interested_name ?? '',
                   interaction.interested_email ?? '',
@@ -1264,20 +1290,85 @@ function AdminPage() {
                   `${interaction.property_code} - ${interaction.property_title}`,
                   `${interaction.property_neighborhood}, ${interaction.property_city} - ${interaction.property_state}`,
                   new Date(interaction.occurred_at).toLocaleString('pt-BR'),
-                  interaction.interaction_type === 'whatsapp_click' ? 'Clique no WhatsApp' : 'E-mail enviado',
+                  interaction.status ?? '',
+                ]),
+              ]
+              downloadCsv('relatorio-emails-enviados.csv', rows)
+            }}><ArrowDown size={15} /> Exportar CSV</button></div>
+            <div className="table-scroll interaction-table-scroll"><table className="property-table interaction-table"><thead><tr><th>Interessado</th><th>E-mail</th><th>Telefone</th><th>Imóvel</th><th>Região</th><th>Data e horário</th><th>Status do atendimento</th></tr></thead><tbody>
+              {paginatedReportInteractions.map((interaction) => <tr key={interaction.id}><td>{interaction.interested_name ?? '—'}</td><td>{interaction.interested_email ?? '—'}</td><td>{interaction.interested_phone ?? '—'}</td><td><strong>{interaction.property_code}</strong><small>{interaction.property_title}</small></td><td>{interaction.property_neighborhood}<small>{interaction.property_city} - {interaction.property_state}</small></td><td>{new Date(interaction.occurred_at).toLocaleString('pt-BR')}</td><td>{interaction.status ?? '—'}</td></tr>)}
+              {!reportInteractions.length && !emailInteractionsLoading && <tr><td colSpan={7}><div className="table-empty">{emailInteractionsError ? 'Não foi possível carregar os e-mails.' : 'Nenhum e-mail enviado corresponde aos filtros.'}</div></td></tr>}
+            </tbody></table></div>
+            <div className="report-pagination">
+              <span>{reportInteractions.length ? `Exibindo ${(currentReportEmailPage - 1) * 5 + 1}–${Math.min(currentReportEmailPage * 5, reportInteractions.length)} de ${reportInteractions.length} e-mails` : 'Nenhum e-mail para exibir'}</span>
+              <div><button type="button" className="button button-outline" aria-label="Página anterior de e-mails" disabled={currentReportEmailPage <= 1} onClick={() => setReportEmailPage((page) => Math.max(1, page - 1))}><ChevronLeft size={15} /> Anterior</button><span>Página {currentReportEmailPage} de {reportEmailPageCount}</span><button type="button" className="button button-outline" aria-label="Próxima página de e-mails" disabled={currentReportEmailPage >= reportEmailPageCount} onClick={() => setReportEmailPage((page) => Math.min(reportEmailPageCount, page + 1))}>Próxima <ChevronRight size={15} /></button></div>
+            </div>
+          </div>
+          <div className="admin-panel report-filter-panel interaction-filter-panel interaction-report-card whatsapp-report-card">
+            <div className="panel-heading"><div><h2>Cliques no WhatsApp</h2><p>Consulte e exporte somente os cliques registrados no botão de chamada via WhatsApp.</p></div></div>
+            <div className="interaction-filter-fields">
+              <div className="interaction-region-picker">
+                <span>Região (bairros, cidades e estados)</span>
+                <details>
+                  <summary>{whatsappFilterDraft.regions.length ? `${whatsappFilterDraft.regions.length} região(ões) selecionada(s)` : 'Todas as regiões'}</summary>
+                  <div className="interaction-region-options">
+                    {interactionRegionOptions.length ? interactionRegionOptions.map(([value, label]) => <label key={value}>
+                      <input type="checkbox" checked={whatsappFilterDraft.regions.includes(value)} onChange={(event) => setWhatsappFilterDraft((current) => ({
+                        ...current,
+                        regions: event.target.checked ? [...current.regions, value] : current.regions.filter((region) => region !== value),
+                      }))} />
+                      <span>{label}</span>
+                    </label>) : <span className="interaction-region-empty">Nenhuma região cadastrada.</span>}
+                  </div>
+                </details>
+              </div>
+              <label className="admin-field">Imóvel
+                <select value={whatsappFilterDraft.propertyId} onChange={(event) => setWhatsappFilterDraft((current) => ({ ...current, propertyId: event.target.value }))}>
+                  <option value="">Todos os imóveis</option>
+                  {properties.map((property) => <option key={property.id} value={property.id}>{property.code} — {property.title}</option>)}
+                </select>
+              </label>
+              <label className="report-date">Data inicial<input type="date" value={whatsappFilterDraft.from} onChange={(event) => setWhatsappFilterDraft((current) => ({ ...current, from: event.target.value }))} /></label>
+              <label className="report-date">Data final<input type="date" value={whatsappFilterDraft.to} onChange={(event) => setWhatsappFilterDraft((current) => ({ ...current, to: event.target.value }))} /></label>
+              <div className="interaction-filter-actions">
+                <button type="button" className="button button-dark interaction-apply-button" disabled={whatsappInteractionsLoading || Boolean(whatsappFilterDraft.from && whatsappFilterDraft.to && whatsappFilterDraft.from > whatsappFilterDraft.to)} onClick={() => { setWhatsappFilters(whatsappFilterDraft); setWhatsappRefreshKey((key) => key + 1) }}><Filter size={15} /> Filtrar cliques</button>
+                <button type="button" className="clear-button" onClick={() => {
+                  const clearedFilters = { regions: [], from: '', to: '', propertyId: '' }
+                  setWhatsappFilterDraft(clearedFilters)
+                  setWhatsappFilters(clearedFilters)
+                  setWhatsappRefreshKey((key) => key + 1)
+                }}>Limpar filtros</button>
+              </div>
+            </div>
+            {whatsappFilterDraft.from && whatsappFilterDraft.to && whatsappFilterDraft.from > whatsappFilterDraft.to && <p className="interaction-filter-error" role="alert">A data inicial deve ser anterior ou igual à data final.</p>}
+            <p className="interaction-filter-note">O CSV e os resultados abaixo incluem somente eventos whatsapp_click dentro do período, imóvel e região selecionados. O clique não fornece nome ou telefone e não confirma o envio de uma mensagem.</p>
+            {whatsappInteractionsError && <div className="admin-alert error-alert" role="alert">{whatsappInteractionsError}</div>}
+            {whatsappInteractionsLoading && <div className="admin-loading-inline"><span className="spinner" />Carregando cliques...</div>}
+            {whatsappClickCounts.length > 0 && <div className="whatsapp-click-ranking"><h3>Imóveis com mais cliques</h3><div className="status-chart">{whatsappClickCounts.slice(0, 8).map(([name, count]) => <div className="status-bar-row" key={name}><span>{name}</span><div className="bar-track"><div className="bar-fill" style={{ width: `${count / maxWhatsAppClicks * 100}%` }} /></div><strong>{count}</strong></div>)}</div></div>}
+            <div className="panel-heading interaction-results-heading"><div><h3>{reportWhatsAppInteractions.length} cliques encontrados</h3></div><button type="button" className="button button-outline" disabled={!reportWhatsAppInteractions.length} onClick={() => {
+              const rows: Array<Array<string | number>> = [
+                ['Nome', 'E-mail', 'Telefone', 'Imóvel', 'Região', 'Data e horário', 'Tipo de interação', 'Origem', 'Status do atendimento'],
+                ...reportWhatsAppInteractions.map((interaction) => [
+                  interaction.interested_name ?? '',
+                  interaction.interested_email ?? '',
+                  interaction.interested_phone ?? '',
+                  `${interaction.property_code} - ${interaction.property_title}`,
+                  `${interaction.property_neighborhood}, ${interaction.property_city} - ${interaction.property_state}`,
+                  new Date(interaction.occurred_at).toLocaleString('pt-BR'),
+                  'Clique no WhatsApp',
                   interaction.interaction_source ?? '',
                   interaction.status ?? '',
                 ]),
               ]
-              downloadCsv('relatorio-interacoes.csv', rows)
-            }}><ArrowDown size={15} /> Exportar CSV</button></div>
-            <div className="table-scroll interaction-table-scroll"><table className="property-table interaction-table"><thead><tr><th>Interessado</th><th>E-mail</th><th>Telefone</th><th>Imóvel</th><th>Região</th><th>Data e horário</th><th>Tipo de interação</th><th>Status do atendimento</th></tr></thead><tbody>
-              {paginatedReportInteractions.map((interaction) => <tr key={interaction.id}><td>{interaction.interested_name ?? '—'}</td><td>{interaction.interested_email ?? '—'}</td><td>{interaction.interested_phone ?? '—'}</td><td><strong>{interaction.property_code}</strong><small>{interaction.property_title}</small></td><td>{interaction.property_neighborhood}<small>{interaction.property_city} - {interaction.property_state}</small></td><td>{new Date(interaction.occurred_at).toLocaleString('pt-BR')}</td><td>{interaction.interaction_type === 'whatsapp_click' ? 'Clique no WhatsApp' : 'E-mail enviado'}</td><td>{interaction.status ?? '—'}</td></tr>)}
-              {!reportInteractions.length && !interactionsLoading && <tr><td colSpan={8}><div className="table-empty">{interactionsError ? 'Não foi possível carregar as interações.' : 'Nenhuma interação corresponde aos filtros. Eventos anteriores à implantação do rastreamento não podem ser recuperados.'}</div></td></tr>}
+              downloadCsv('relatorio-cliques-whatsapp.csv', rows)
+            }}><ArrowDown size={15} /> Exportar CSV de cliques</button></div>
+            <div className="table-scroll interaction-table-scroll"><table className="property-table interaction-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Telefone</th><th>Imóvel</th><th>Região</th><th>Data e horário</th><th>Tipo de interação</th><th>Status</th></tr></thead><tbody>
+              {paginatedReportWhatsAppInteractions.map((interaction) => <tr key={interaction.id}><td>{interaction.interested_name ?? '—'}</td><td>{interaction.interested_email ?? '—'}</td><td>{interaction.interested_phone ?? '—'}</td><td><strong>{interaction.property_code}</strong><small>{interaction.property_title}</small></td><td>{interaction.property_neighborhood}<small>{interaction.property_city} - {interaction.property_state}</small></td><td>{new Date(interaction.occurred_at).toLocaleString('pt-BR')}</td><td>Clique no WhatsApp</td><td>{interaction.status ?? '—'}</td></tr>)}
+              {!reportWhatsAppInteractions.length && !whatsappInteractionsLoading && <tr><td colSpan={8}><div className="table-empty">{whatsappInteractionsError ? 'Não foi possível carregar os cliques.' : 'Nenhum clique encontrado. Confirme se a migration e a Edge Function property-inquiry foram atualizadas no Supabase e tente novamente.'}</div></td></tr>}
             </tbody></table></div>
             <div className="report-pagination">
-              <span>{reportInteractions.length ? `Exibindo ${(currentReportEmailPage - 1) * 5 + 1}–${Math.min(currentReportEmailPage * 5, reportInteractions.length)} de ${reportInteractions.length} interações` : 'Nenhuma interação para exibir'}</span>
-              <div><button type="button" className="button button-outline" aria-label="Página anterior de interações" disabled={currentReportEmailPage <= 1} onClick={() => setReportEmailPage((page) => Math.max(1, page - 1))}><ChevronLeft size={15} /> Anterior</button><span>Página {currentReportEmailPage} de {reportEmailPageCount}</span><button type="button" className="button button-outline" aria-label="Próxima página de interações" disabled={currentReportEmailPage >= reportEmailPageCount} onClick={() => setReportEmailPage((page) => Math.min(reportEmailPageCount, page + 1))}>Próxima <ChevronRight size={15} /></button></div>
+              <span>{reportWhatsAppInteractions.length ? `Exibindo ${(currentReportWhatsAppPage - 1) * 5 + 1}–${Math.min(currentReportWhatsAppPage * 5, reportWhatsAppInteractions.length)} de ${reportWhatsAppInteractions.length} cliques` : 'Nenhum clique para exibir'}</span>
+              <div><button type="button" className="button button-outline" aria-label="Página anterior de cliques no WhatsApp" disabled={currentReportWhatsAppPage <= 1} onClick={() => setReportWhatsAppPage((page) => Math.max(1, page - 1))}><ChevronLeft size={15} /> Anterior</button><span>Página {currentReportWhatsAppPage} de {reportWhatsAppPageCount}</span><button type="button" className="button button-outline" aria-label="Próxima página de cliques no WhatsApp" disabled={currentReportWhatsAppPage >= reportWhatsAppPageCount} onClick={() => setReportWhatsAppPage((page) => Math.min(reportWhatsAppPageCount, page + 1))}>Próxima <ChevronRight size={15} /></button></div>
             </div>
           </div>
         </section>}
