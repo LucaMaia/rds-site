@@ -780,6 +780,7 @@ function AdminPage() {
   const [memberError, setMemberError] = useState('')
   const [memberSuccess, setMemberSuccess] = useState('')
   const [reportPropertyPage, setReportPropertyPage] = useState(1)
+  const [reportEmailPage, setReportEmailPage] = useState(1)
   useEffect(() => {
     if (!memberPhoto) { setMemberPhotoPreview(''); return }
     const previewUrl = URL.createObjectURL(memberPhoto)
@@ -787,6 +788,7 @@ function AdminPage() {
     return () => URL.revokeObjectURL(previewUrl)
   }, [memberPhoto])
   useEffect(() => { setReportPropertyPage(1) }, [reportFilters])
+  useEffect(() => { setReportEmailPage(1) }, [reportFilters, interactionFilters])
   const view = searchParams.get('view') ?? 'overview'
   const [editorOpened, setEditorOpened] = useState(() => searchParams.get('view') === 'editor')
   const [editorPropertyId, setEditorPropertyId] = useState<string | null>(() => searchParams.get('id'))
@@ -1079,6 +1081,9 @@ function AdminPage() {
     })
     return matchesExistingFilters && matchesSelectedRegions
   })
+  const reportEmailPageCount = Math.max(1, Math.ceil(reportInteractions.length / 5))
+  const currentReportEmailPage = Math.min(reportEmailPage, reportEmailPageCount)
+  const paginatedReportInteractions = reportInteractions.slice((currentReportEmailPage - 1) * 5, currentReportEmailPage * 5)
   const captorCounts = Object.entries(reportProperties.reduce<Record<string, number>>((acc, property) => {
     const name = property.captor?.name ?? 'Sem captador'
     acc[name] = (acc[name] ?? 0) + 1
@@ -1149,9 +1154,13 @@ function AdminPage() {
               downloadCsv('relatorio-emails-enviados.csv', rows)
             }}><ArrowDown size={15} /> Exportar CSV</button></div>
             <div className="table-scroll interaction-table-scroll"><table className="property-table interaction-table"><thead><tr><th>Interessado</th><th>E-mail</th><th>Telefone</th><th>Imóvel</th><th>Região</th><th>Data e horário</th><th>Status do atendimento</th></tr></thead><tbody>
-              {reportInteractions.map((interaction) => <tr key={interaction.id}><td>{interaction.interested_name}</td><td>{interaction.interested_email}</td><td>{interaction.interested_phone}</td><td><strong>{interaction.property_code}</strong><small>{interaction.property_title}</small></td><td>{interaction.property_neighborhood}<small>{interaction.property_city} - {interaction.property_state}</small></td><td>{new Date(interaction.occurred_at).toLocaleString('pt-BR')}</td><td>{interaction.status ?? '—'}</td></tr>)}
+              {paginatedReportInteractions.map((interaction) => <tr key={interaction.id}><td>{interaction.interested_name}</td><td>{interaction.interested_email}</td><td>{interaction.interested_phone}</td><td><strong>{interaction.property_code}</strong><small>{interaction.property_title}</small></td><td>{interaction.property_neighborhood}<small>{interaction.property_city} - {interaction.property_state}</small></td><td>{new Date(interaction.occurred_at).toLocaleString('pt-BR')}</td><td>{interaction.status ?? '—'}</td></tr>)}
               {!reportInteractions.length && !interactionsLoading && <tr><td colSpan={7}><div className="table-empty">{interactionsError ? 'Não foi possível carregar os e-mails.' : 'Nenhum e-mail enviado corresponde aos filtros. Se esperava resultados, confirme se a migration foi aplicada e a função atualizada foi publicada; envios anteriores não são recuperados.'}</div></td></tr>}
             </tbody></table></div>
+            <div className="report-pagination">
+              <span>{reportInteractions.length ? `Exibindo ${(currentReportEmailPage - 1) * 5 + 1}–${Math.min(currentReportEmailPage * 5, reportInteractions.length)} de ${reportInteractions.length} e-mails` : 'Nenhum e-mail para exibir'}</span>
+              <div><button type="button" className="button button-outline" aria-label="Página anterior de e-mails" disabled={currentReportEmailPage <= 1} onClick={() => setReportEmailPage((page) => Math.max(1, page - 1))}><ChevronLeft size={15} /> Anterior</button><span>Página {currentReportEmailPage} de {reportEmailPageCount}</span><button type="button" className="button button-outline" aria-label="Próxima página de e-mails" disabled={currentReportEmailPage >= reportEmailPageCount} onClick={() => setReportEmailPage((page) => Math.min(reportEmailPageCount, page + 1))}>Próxima <ChevronRight size={15} /></button></div>
+            </div>
           </div>
         </section>}
         {view === 'overview' && <section className="dashboard-view"><div className="admin-page-heading"><div><span className="eyebrow gold">PAINEL ADMINISTRATIVO</span><h1>Bom dia, equipe.</h1><p>Acompanhe sua carteira e os anúncios ativos.</p></div><button className="button button-dark" onClick={() => changeView('editor')}><Plus size={16} /> Cadastrar imóvel</button></div>
