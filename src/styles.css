@@ -454,9 +454,10 @@ h1,h2,h3,p{margin-top:0}
 .report-date input{height:34px;max-width:130px;border:1px solid #e8e6df;padding:0 7px;font-size:9px;color:#5d5e57}
 .interaction-report-section{margin-top:24px}
 .interaction-report-section>.admin-page-heading h2{font:500 27px var(--serif);margin:7px 0}
-.interaction-filter-panel .admin-filters{align-items:flex-end}
+.admin-panel.interaction-filter-panel{position:relative;z-index:4;overflow:visible;margin-bottom:28px}
+.interaction-filter-panel .admin-filters{position:relative;align-items:flex-end}
 .interaction-region-picker{position:relative;display:flex;flex-direction:column;gap:6px;min-width:220px;font-size:8px;color:#777870;z-index:2}
-.interaction-region-picker details{position:relative}
+.interaction-region-picker details{position:relative;z-index:5}
 .interaction-region-picker summary{height:34px;min-width:220px;max-width:310px;display:flex;align-items:center;justify-content:space-between;border:1px solid #e8e6df;background:white;padding:0 10px;font-size:9px;color:#5d5e57;cursor:pointer;list-style:none}
 .interaction-region-picker summary::-webkit-details-marker{display:none}
 .interaction-region-picker summary:after{content:"";width:6px;height:6px;border-right:1px solid #777870;border-bottom:1px solid #777870;transform:rotate(45deg);margin:0 3px 3px 10px}
