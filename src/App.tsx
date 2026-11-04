@@ -296,10 +296,10 @@ function HomePage() {
   const regionCards = useMemo(() => regions.map((region) => {
     const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR')
     const normalizedRegion = normalize(region)
-    const matchingProperties = properties.filter((property) => {
-      const neighborhood = normalize(property.neighborhood)
-      return neighborhood === normalizedRegion || neighborhood.startsWith(`${normalizedRegion} `)
-    })
+    const matchingProperties = properties.filter((property) =>
+      [property.state, property.city, property.neighborhood, property.title, property.code]
+        .some((value) => normalize(value).includes(normalizedRegion)),
+    )
     const selectedProperty = matchingProperties[0]
     const propertyPhoto = selectedProperty?.property_images?.find((image) => image.is_cover)?.url
       ?? selectedProperty?.property_images?.[0]?.url
