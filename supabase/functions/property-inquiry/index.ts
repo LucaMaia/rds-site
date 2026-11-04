@@ -3,7 +3,7 @@ const propertyFields = [
   'id', 'code', 'title', 'type', 'purpose', 'status', 'broker_id', 'captor_id', 'state', 'city', 'neighborhood',
   'sale_price', 'rent_price', 'condo_fee', 'property_tax', 'tax_frequency', 'total_area', 'private_area',
   'bedrooms', 'suites', 'bathrooms', 'parking_spaces', 'floor', 'construction_year', 'furnished',
-  'financing', 'trade', 'features', 'description',
+  'financing', 'trade', 'features', 'description', 'created_at',
 ].join(',')
 
 type PropertyRecord = {
@@ -36,7 +36,10 @@ type PropertyRecord = {
   trade: boolean
   features: string[]
   description: string
+  created_at: string
 }
+
+type InteractionType = 'contact_received' | 'email_sent'
 
 type InquiryBody = {
   propertyId?: unknown
@@ -99,6 +102,27 @@ async function restRows<T>(
   const data: unknown = await response.json()
   if (!Array.isArray(data)) throw new HttpError(502, 'Resposta inválida ao carregar os dados do imóvel.')
   return data as T[]
+}
+
+async function recordInteraction(
+  baseUrl: string,
+  serviceKey: string,
+  interaction: Record<string, unknown>,
+) {
+  const response = await fetch(`${baseUrl}/rest/v1/property_interactions`, {
+    method: 'POST',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `******,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify(interaction),
+  })
+  if (!response.ok) {
+    console.error(`Property interaction recording failed: ${response.status}`)
+    throw new HttpError(503, 'Não foi possível registrar a interação. Tente novamente mais tarde.')
+  }
 }
 
 async function consumeRateLimit(baseUrl: string, serviceKey: string, ip: string) {
@@ -206,7 +230,6 @@ Deno.serve(async (request) => {
     const resendKey = Deno.env.get('RESEND_API_KEY')
     const from = Deno.env.get('RESEND_FROM_EMAIL')
     if (!baseUrl || !serviceKey) throw new HttpError(503, 'O serviço de contato ainda não está configurado.')
-    if (!resendKey || !from) throw new HttpError(503, 'O envio de e-mail ainda não está configurado.')
 
     const ip = request.headers.get('cf-connecting-ip')?.trim()
       ?? request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim()
@@ -220,6 +243,24 @@ Deno.serve(async (request) => {
     ])
     const property = properties[0]
     if (!property) throw new HttpError(404, 'Este imóvel não está disponível para contato.')
+    const interaction = {
+      property_id: property.id,
+      property_code: property.code,
+      property_title: property.title,
+      property_neighborhood: property.neighborhood,
+      property_city: property.city,
+      property_state: property.state,
+      property_type: property.type,
+      property_purpose: property.purpose,
+      property_status: property.status,
+      property_captor_id: property.captor_id,
+      property_captor_name: null,
+      property_created_at: property.created_at,
+      interested_name: name,
+      interested_email: email,
+      interested_phone: whatsapp,
+    }
+    await recordInteraction(baseUrl, serviceKey, { ...interaction, interaction_type: 'contact_received' satisfies InteractionType })
 
     const [images, brokers, captors] = await Promise.all([
       restRows<{ url: string }>(baseUrl, serviceKey, 'property_images', {
@@ -244,12 +285,13 @@ Deno.serve(async (request) => {
         : Promise.resolve([] as ContactRecord[]),
     ])
 
+    const broker = brokers[0] ?? null
+    const captor = captors[0] ?? null
+    if (!resendKey || !from) throw new HttpError(503, 'O envio de e-mail ainda não está configurado.')
     const recipient = settings[0]?.contact_email?.trim() || fallbackRecipient
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
       throw new HttpError(503, 'O e-mail de contato do site não é válido.')
     }
-    const broker = brokers[0] ?? null
-    const captor = captors[0] ?? null
     const propertyUrl = `${origin}/imoveis/${property.id}`
     const rows = propertyRows(property, images.map((image) => image.url), broker, captor, propertyUrl)
     const text = [
@@ -306,6 +348,7 @@ Deno.serve(async (request) => {
       }
       throw new HttpError(502, `O Resend recusou o e-mail (HTTP ${delivery.status}). Confira Resend → Logs para ver o motivo.`)
     }
+    await recordInteraction(baseUrl, serviceKey, { ...interaction, interaction_type: 'email_sent' satisfies InteractionType })
     return jsonResponse({ ok: true }, 200, origin)
   } catch (reason) {
     if (reason instanceof HttpError) return jsonResponse({ error: reason.message }, reason.status, origin)

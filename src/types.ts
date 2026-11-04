@@ -130,6 +130,31 @@ export interface PropertyInquiryInput {
   honeypot: string
 }
 
+export type PropertyInteractionType = 'contact_received' | 'email_sent' | 'visit_requested' | 'visit_completed'
+
+export interface PropertyInteraction {
+  id: string
+  property_id: string | null
+  property_code: string
+  property_title: string
+  property_neighborhood: string
+  property_city: string
+  property_state: string
+  property_type: string
+  property_purpose: Purpose
+  property_status: PropertyStatus
+  property_captor_id: string | null
+  property_captor_name: string | null
+  property_created_at: string
+  interested_name: string
+  interested_email: string
+  interested_phone: string
+  interaction_type: PropertyInteractionType
+  occurred_at: string
+  status: string | null
+  created_at: string
+}
+
 export interface PropertyIntegration {
   id: string
   imovel_id: string
@@ -195,6 +220,7 @@ export interface Database {
       property_videos: DbTable<PropertyVideo, Partial<PropertyVideo> & Pick<PropertyVideo, 'property_id' | 'url'>>
       property_links: DbTable<PropertyLink, Partial<PropertyLink> & Pick<PropertyLink, 'property_id' | 'name' | 'url'>>
       property_status_history: DbTable<PropertyStatusHistory>
+      property_interactions: DbTable<PropertyInteraction, Partial<PropertyInteraction> & Pick<PropertyInteraction, 'property_code' | 'property_title' | 'property_neighborhood' | 'property_city' | 'property_state' | 'property_type' | 'property_purpose' | 'property_status' | 'property_created_at' | 'interested_name' | 'interested_email' | 'interested_phone' | 'interaction_type'>>
       imovel_integracoes: DbTable<PropertyIntegration, Partial<PropertyIntegration> & Pick<PropertyIntegration, 'imovel_id' | 'portal'>>
       profiles: DbTable<{ id: string; role: string; full_name: string | null }>
       site_settings: DbTable<SiteSettings>

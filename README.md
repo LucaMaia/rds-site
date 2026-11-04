@@ -48,6 +48,7 @@ O acesso administrativo usa Supabase Auth; nenhum cadastro público de usuários
 - A migração `20261104130000_move_team_member_role.sql` habilita a troca de função com transferência dos imóveis associados; se algum imóvel já tiver outra pessoa na função de destino, a troca é bloqueada para evitar sobrescrever a atribuição.
 - Migração cria as tabelas, índices, views públicas, políticas RLS, bucket de imagens e os dois imóveis fictícios com fotografias ilustrativas.
 - Formulário de interesse no detalhe do imóvel: envia os dados do cliente e os detalhes do anúncio por e-mail; após a confirmação, permite abrir o WhatsApp da equipe RDS (+55 61 99944 9411) com a mensagem preenchida.
+- Relatório de interações: registra novas solicitações de contato e notificações de e-mail aceitas pelo Resend, permite filtrar eventos e exportá-los em CSV. Visitas podem ser registradas manualmente pelo administrador após confirmação; nenhum evento de visita é inferido de um e-mail.
 
 ## Contato por e-mail e WhatsApp
 
@@ -55,11 +56,11 @@ O formulário público usa a Supabase Edge Function `property-inquiry`. O destin
 
 Para ativar:
 
-1. Aplique [supabase/migrations/20261103214000_property_inquiry_rate_limits.sql](./supabase/migrations/20261103214000_property_inquiry_rate_limits.sql) no Supabase.
+1. Aplique [supabase/migrations/20261103214000_property_inquiry_rate_limits.sql](./supabase/migrations/20261103214000_property_inquiry_rate_limits.sql) e [supabase/migrations/20261104140000_property_interaction_history.sql](./supabase/migrations/20261104140000_property_interaction_history.sql) no Supabase.
 2. No Supabase, configure os secrets `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (remetente de um domínio verificado no Resend) e `ALLOWED_ORIGINS` (origens separadas por vírgula; inclua `https://rds-site.vercel.app` e a origem local usada no desenvolvimento).
 3. Faça deploy com `supabase functions deploy property-inquiry`. As variáveis internas `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` são lidas somente pela Edge Function.
 
-A função limita envios por IP, valida os dados e aceita chamadas somente das origens configuradas. Nunca configure a chave do Resend ou a `service_role` em variáveis `VITE_*` ou no navegador. A entrega real depende de uma chave válida do Resend e de um remetente verificado.
+A função limita envios por IP, valida os dados e aceita chamadas somente das origens configuradas. Cada solicitação válida passa a gerar um evento `contact_received`; o evento `email_sent` é registrado apenas após o Resend aceitar o envio. Isso não comprova entrega na caixa postal. Eventos anteriores à migration não podem ser recuperados. Visitas solicitadas ou realizadas são registradas somente por ação explícita e confirmada do administrador; não se presume uma visita a partir de um e-mail ou clique no WhatsApp. Nunca configure a chave do Resend ou a `service_role` em variáveis `VITE_*` ou no navegador. A entrega real depende de uma chave válida do Resend e de um remetente verificado.
 
 ## Integrações XML com portais
 

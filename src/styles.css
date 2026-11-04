@@ -452,6 +452,20 @@ h1,h2,h3,p{margin-top:0}
 .report-filter-panel .admin-filters>select,.report-filter-panel .admin-filters>input{height:34px;border:1px solid #e8e6df;background:white;padding:0 9px;font-size:9px;color:#5d5e57;max-width:170px}
 .report-date{display:flex;align-items:center;gap:6px;font-size:8px;color:#777870}
 .report-date input{height:34px;max-width:130px;border:1px solid #e8e6df;padding:0 7px;font-size:9px;color:#5d5e57}
+.interaction-report-section{margin-top:24px}
+.interaction-report-section>.admin-page-heading h2{font:500 27px var(--serif);margin:7px 0}
+.interaction-filter-panel .admin-filters{align-items:flex-end}
+.interaction-multiselect{display:flex;flex-direction:column;gap:6px;font-size:8px;color:#777870}
+.interaction-multiselect select{min-width:220px;min-height:82px;max-width:310px;border:1px solid #e8e6df;background:white;padding:7px;font-size:9px;color:#5d5e57}
+.interaction-filter-note{padding:0 17px 14px;margin:0;font-size:9px;line-height:1.6;color:#85867f}
+.interaction-listing .panel-heading{align-items:center}
+.interaction-listing .panel-heading .button{white-space:nowrap}
+.interaction-table{min-width:1300px}
+.interaction-table td{font-size:9px}
+.interaction-table td small{display:block;color:#85867f;margin-top:3px}
+.interaction-table td strong{font-weight:600}
+.interaction-visit-actions{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.interaction-visit-actions .text-link{padding:0;font-size:8px}
 .report-metrics{margin-top:0}
 .report-metrics .metric-card>strong{font-family:"DM Sans",Arial,sans-serif;font-size:21px}
 .settings-form .panel-heading{padding:18px 20px}

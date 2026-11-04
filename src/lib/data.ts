@@ -1,6 +1,6 @@
 import { demoCaptors, demoProperties } from './demo'
 import { isSupabaseConfigured, supabase } from './supabase'
-import type { Captor, IntegrationPortal, Property, PropertyImage, PropertyInput, PropertyInquiryInput, PropertyLink, PropertyVideo, SiteSettings } from '../types'
+import type { Captor, IntegrationPortal, Property, PropertyImage, PropertyInput, PropertyInquiryInput, PropertyInteraction, PropertyInteractionType, PropertyLink, PropertyVideo, SiteSettings } from '../types'
 
 function requireSupabase() {
   if (!supabase) throw new Error('Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para acessar o banco de dados.')
@@ -83,6 +83,45 @@ export async function getTeam(): Promise<Captor[]> {
   if (captors.error) throw captors.error
   if (brokers.error) throw brokers.error
   return [...(captors.data ?? []), ...(brokers.data ?? []).map((broker) => ({ ...broker, name: `${broker.name} · corretor` }))]
+}
+
+export async function getPropertyInteractions(from?: string, toExclusive?: string): Promise<PropertyInteraction[]> {
+  const client = requireSupabase()
+  const pageSize = 500
+  const interactions: PropertyInteraction[] = []
+  for (let fromIndex = 0; ; fromIndex += pageSize) {
+    let query = client.from('property_interactions').select('*').order('occurred_at', { ascending: false })
+    if (from) query = query.gte('occurred_at', from)
+    if (toExclusive) query = query.lt('occurred_at', toExclusive)
+    const { data, error } = await query.range(fromIndex, fromIndex + pageSize - 1)
+    if (error) throw error
+    interactions.push(...(data ?? []))
+    if (!data || data.length < pageSize) break
+  }
+  return interactions
+}
+
+export async function registerPropertyVisit(interaction: PropertyInteraction, type: Extract<PropertyInteractionType, 'visit_requested' | 'visit_completed'>): Promise<void> {
+  const client = requireSupabase()
+  const { error } = await client.from('property_interactions').insert({
+    property_id: interaction.property_id,
+    property_code: interaction.property_code,
+    property_title: interaction.property_title,
+    property_neighborhood: interaction.property_neighborhood,
+    property_city: interaction.property_city,
+    property_state: interaction.property_state,
+    property_type: interaction.property_type,
+    property_purpose: interaction.property_purpose,
+    property_status: interaction.property_status,
+    property_captor_id: interaction.property_captor_id,
+    property_captor_name: interaction.property_captor_name,
+    property_created_at: interaction.property_created_at,
+    interested_name: interaction.interested_name,
+    interested_email: interaction.interested_email,
+    interested_phone: interaction.interested_phone,
+    interaction_type: type,
+  })
+  if (error) throw error
 }
 
 export async function getSiteSettings(): Promise<SiteSettings> {
