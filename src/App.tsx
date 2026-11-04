@@ -462,6 +462,15 @@ const blankInput: PropertyInput = {
   floor: null, construction_year: null, furnished: false, financing: false, trade: false, features: [], description: '', featured: false,
 }
 
+const brazilianStateNames: Record<string, string> = {
+  AC: 'Acre', AL: 'Alagoas', AP: 'Amapá', AM: 'Amazonas', BA: 'Bahia', CE: 'Ceará',
+  DF: 'Distrito Federal', ES: 'Espírito Santo', GO: 'Goiás', MA: 'Maranhão', MT: 'Mato Grosso',
+  MS: 'Mato Grosso do Sul', MG: 'Minas Gerais', PA: 'Pará', PB: 'Paraíba', PR: 'Paraná',
+  PE: 'Pernambuco', PI: 'Piauí', RJ: 'Rio de Janeiro', RN: 'Rio Grande do Norte',
+  RS: 'Rio Grande do Sul', RO: 'Rondônia', RR: 'Roraima', SC: 'Santa Catarina',
+  SP: 'São Paulo', SE: 'Sergipe', TO: 'Tocantins',
+}
+
 function propertyInput(property: Property | null): PropertyInput {
   if (!property) return { ...blankInput }
   const { id: _id, created_at: _created, updated_at: _updated, captor: _captor, broker: _broker, property_images: _images, property_videos: _videos, property_links: _links, status_history: _history, integrations: _integrations, ...input } = property
@@ -554,6 +563,8 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
   const [draftRestored] = useState(Boolean(initialDraft))
   const [draftError, setDraftError] = useState('')
   const hadPendingPhotos = useRef(Boolean(initialDraft?.hadPendingPhotos))
+  const [cepLookupStatus, setCepLookupStatus] = useState('')
+  const lastZipCode = useRef(String(initialDraft?.values.zip_code ?? property?.zip_code ?? '').replace(/\D/g, ''))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -577,6 +588,48 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
       setDraftError('Não foi possível guardar o rascunho neste navegador.')
     }
   }, [activePortals, draftKey, images, links, photos.length, values, videos])
+  useEffect(() => {
+    const zipCode = String(values.zip_code ?? '').replace(/\D/g, '')
+    if (zipCode === lastZipCode.current) return
+    lastZipCode.current = zipCode
+    if (zipCode.length !== 8) {
+      setCepLookupStatus('')
+      return
+    }
+
+    const controller = new AbortController()
+    let active = true
+    const currentValues = values
+    setCepLookupStatus('Buscando endereço pelo CEP...')
+    fetch(`https://viacep.com.br/ws/${zipCode}/json/`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Não foi possível consultar o CEP. Tente novamente.')
+        const result: unknown = await response.json()
+        if (!result || typeof result !== 'object' || 'erro' in result && result.erro === true) {
+          throw new Error('CEP não encontrado. Confira o número e tente novamente.')
+        }
+        return result as { logradouro?: string; bairro?: string; localidade?: string; uf?: string }
+      })
+      .then((result) => {
+        if (!active) return
+        setValues((current) => ({
+          ...current,
+          ...(result.uf && current.state === currentValues.state ? { state: brazilianStateNames[result.uf] ?? result.uf } : {}),
+          ...(result.localidade && current.city === currentValues.city ? { city: result.localidade } : {}),
+          ...(result.bairro && current.neighborhood === currentValues.neighborhood ? { neighborhood: result.bairro } : {}),
+          ...(result.logradouro && current.address === currentValues.address ? { address: result.logradouro } : {}),
+        }))
+        setCepLookupStatus('Endereço preenchido pelo CEP. Confira os dados antes de salvar.')
+      })
+      .catch((reason: unknown) => {
+        if (!active || reason instanceof DOMException && reason.name === 'AbortError') return
+        setCepLookupStatus(reason instanceof Error ? reason.message : 'Não foi possível consultar o CEP. Tente novamente.')
+      })
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [values.zip_code])
   function text(key: keyof PropertyInput, value: string) {
     setValues((current) => ({ ...current, [key]: value }))
   }
@@ -647,7 +700,7 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
       <label className="check-field"><input type="checkbox" checked={values.featured} onChange={(event) => setValues((current) => ({ ...current, featured: event.target.checked }))} />Destacar na página inicial</label>
     </div>{property?.status_history?.length ? <div className="status-history"><h3>Histórico de status</h3>{property.status_history.map((entry) => <div key={entry.id}><span>{new Date(entry.changed_at).toLocaleString('pt-BR')}</span><strong>{entry.from_status ? statusNames[entry.from_status] : 'Cadastro'} → {statusNames[entry.to_status]}</strong><small>Responsável: {entry.changed_by_name ?? 'Administrador'}</small></div>)}</div> : null}</section>
     <section className="form-section"><div className="form-section-heading"><span>02</span><div><h2>Localização</h2><p>O endereço público exibe região e cidade</p></div></div><div className="admin-form-grid">
-      {field('CEP', 'zip_code', 'text', false, '00000-000')}{field('Estado', 'state', 'text', true)}{field('Cidade', 'city', 'text', true)}{field('Região / bairro', 'neighborhood', 'text', true)}
+      <label className="admin-field">CEP<input type="text" inputMode="numeric" autoComplete="postal-code" value={String(values.zip_code ?? '')} placeholder="00000-000" onChange={(event) => text('zip_code', event.target.value)} />{cepLookupStatus && <small role="status">{cepLookupStatus}</small>}</label>{field('Estado', 'state', 'text', true)}{field('Cidade', 'city', 'text', true)}{field('Região / bairro', 'neighborhood', 'text', true)}
       {field('Endereço', 'address')}{field('Número', 'number')}{field('Complemento', 'complement')}
     </div></section>
     <section className="form-section"><div className="form-section-heading"><span>03</span><div><h2>Valores</h2><p>Preencha apenas os valores aplicáveis</p></div></div><div className="admin-form-grid">
