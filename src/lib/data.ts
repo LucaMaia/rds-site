@@ -99,15 +99,28 @@ export async function sendPropertyInquiry(inquiry: PropertyInquiryInput): Promis
   if (!error) return
 
   if ('context' in error && error.context instanceof Response) {
+    const status = error.context.status
     let body: unknown = null
     try {
-      body = await error.context.json()
+      body = await error.context.clone().json()
     } catch {
-      body = null
+      try {
+        body = await error.context.text()
+      } catch {
+        body = null
+      }
     }
     if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') throw new Error(body.error)
+    if (status === 404) throw new Error('A função de envio ainda não foi publicada no Supabase. Faça o deploy de property-inquiry e tente novamente.')
+    if (status === 401) throw new Error('O Supabase recusou a chamada da função. Verifique se property-inquiry foi publicada com verify_jwt = false.')
+    if (status === 403) throw new Error('A origem deste site não está autorizada. Confira o secret ALLOWED_ORIGINS da função no Supabase.')
+    if (status === 429) throw new Error('Muitas solicitações. Aguarde alguns minutos e tente novamente.')
+    if (status === 503) throw new Error('O envio ainda não está configurado. Confira se a migration e os secrets do Resend foram configurados no Supabase.')
+    if (status >= 500) throw new Error(`O serviço de envio retornou erro (${status}). Confira os logs da Edge Function property-inquiry no Supabase.`)
+    throw new Error(`Não foi possível enviar a solicitação (erro ${status}). Confira os logs da Edge Function property-inquiry no Supabase.`)
   }
-  throw new Error('Não foi possível enviar sua solicitação. Tente novamente em alguns instantes.')
+  console.error('Property inquiry function request failed:', error)
+  throw new Error('Não foi possível conectar à função de envio do Supabase. Verifique se ela foi publicada e tente novamente.')
 }
 
 export async function saveSiteSettings(settings: Omit<SiteSettings, 'id'>): Promise<void> {
