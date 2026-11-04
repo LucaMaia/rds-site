@@ -444,15 +444,22 @@ function DetailPage() {
   const [inquirySending, setInquirySending] = useState(false)
   const [inquirySent, setInquirySent] = useState(false)
   const [inquiryError, setInquiryError] = useState('')
+  const [inquiryModalOpen, setInquiryModalOpen] = useState(false)
+  const [inquiryModalDismissed, setInquiryModalDismissed] = useState(false)
   const inquiryRequestId = useRef(0)
   const lastWhatsAppClickAt = useRef(0)
   useEffect(() => {
     inquiryRequestId.current += 1
+    setProperty(null)
+    setLoading(true)
+    setError('')
     setInquiry({ name: '', email: '', whatsapp: '' })
     setInquiryConsent(false)
     setInquirySending(false)
     setInquirySent(false)
     setInquiryError('')
+    setInquiryModalOpen(false)
+    setInquiryModalDismissed(false)
     let active = true
     getPublicProperties().then((properties) => {
       const found = properties.find((candidate) => candidate.id === id || candidate.code === id)
@@ -461,6 +468,27 @@ function DetailPage() {
     getSiteSettings().then((siteSettings) => { if (active) setSettings(siteSettings) }).catch((reason: Error) => { if (active) setSettingsError(reason.message) })
     return () => { active = false }
   }, [id])
+  useEffect(() => {
+    if (!property || (property.id !== id && property.code !== id) || inquiryModalDismissed || inquirySent) return
+    const timer = window.setTimeout(() => setInquiryModalOpen(true), 10_000)
+    return () => window.clearTimeout(timer)
+  }, [id, property, inquiryModalDismissed, inquirySent])
+  useEffect(() => {
+    if (!inquiryModalOpen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setInquiryModalOpen(false)
+        setInquiryModalDismissed(true)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [inquiryModalOpen])
   if (loading) return <><Header /><Loading message="Carregando imóvel" /></>
   if (error || !property) return <><Header /><div className="empty-state detail-empty"><Home size={30} /><h2>Imóvel não encontrado</h2><p>{error || 'Este imóvel não está disponível ou não existe.'}</p><Link className="button button-outline" to="/imoveis">Voltar aos imóveis</Link></div><Footer /></>
   const images = property.property_images?.length ? property.property_images : [{ id: 'fallback', property_id: id, url: imageFallback, display_order: 0, is_cover: true }]
@@ -476,7 +504,10 @@ function DetailPage() {
       const form = event.currentTarget
       const website = new FormData(form).get('website')?.toString() ?? ''
       await sendPropertyInquiry({ propertyId: currentProperty.id, ...inquiry, honeypot: website })
-      if (inquiryRequestId.current === requestId) setInquirySent(true)
+      if (inquiryRequestId.current === requestId) {
+        setInquirySent(true)
+        setInquiryModalOpen(false)
+      }
     } catch (reason) {
       if (inquiryRequestId.current === requestId) setInquiryError(reason instanceof Error ? reason.message : 'Não foi possível enviar sua solicitação.')
     } finally {
@@ -547,6 +578,23 @@ function DetailPage() {
         <button className="button button-dark full-button" disabled={inquirySending}>{inquirySending ? 'Enviando solicitação...' : 'Enviar meu interesse'} <ArrowRight size={17} /></button>
       </form>}
     </section>
+    {inquiryModalOpen && !inquirySent && <div className="inquiry-modal-backdrop" onClick={() => { setInquiryModalOpen(false); setInquiryModalDismissed(true) }}>
+      <section className="inquiry-modal" role="dialog" aria-modal="true" aria-labelledby="inquiry-modal-title" onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="inquiry-modal-close" aria-label="Fechar formulário de interesse" onClick={() => { setInquiryModalOpen(false); setInquiryModalDismissed(true) }}><X size={19} /></button>
+        <span className="eyebrow gold">FALE COM A RDS</span>
+        <h2 id="inquiry-modal-title">Gostou deste imóvel?</h2>
+        <p>Deixe seus dados e nossa equipe entrará em contato para conversar sobre <strong>{property.title}</strong>.</p>
+        <form className="property-inquiry-form inquiry-modal-form" onSubmit={(event) => void submitInquiry(event)}>
+          {inquiryError && <div className="admin-alert error-alert" role="alert">{inquiryError}</div>}
+          <label className="inquiry-honeypot" aria-hidden="true">Não preencher<input name="website" tabIndex={-1} autoComplete="off" /></label>
+          <label className="admin-field">Seu nome<input required maxLength={120} autoComplete="name" value={inquiry.name} onChange={(event) => setInquiry((current) => ({ ...current, name: event.target.value }))} placeholder="Nome completo" /></label>
+          <label className="admin-field">Seu WhatsApp<input required type="tel" maxLength={25} autoComplete="tel" value={inquiry.whatsapp} onChange={(event) => setInquiry((current) => ({ ...current, whatsapp: event.target.value }))} placeholder="(61) 99999-9999" /></label>
+          <label className="admin-field inquiry-email-field">Seu e-mail<input required type="email" maxLength={254} autoComplete="email" value={inquiry.email} onChange={(event) => setInquiry((current) => ({ ...current, email: event.target.value }))} placeholder="voce@email.com" /></label>
+          <label className="inquiry-consent"><input required type="checkbox" checked={inquiryConsent} onChange={(event) => setInquiryConsent(event.target.checked)} /><span>Autorizo o uso destes dados pela RDS Imóveis e pelo responsável por este anúncio para tratar do meu interesse neste imóvel.</span></label>
+          <button className="button button-dark full-button" disabled={inquirySending}>{inquirySending ? 'Enviando solicitação...' : 'Enviar meu interesse'} <ArrowRight size={17} /></button>
+        </form>
+      </section>
+    </div>}
     {lightbox && <div className="lightbox" role="dialog" aria-modal="true" aria-label="Galeria de fotos"><button className="lightbox-close" onClick={() => setLightbox(false)} aria-label="Fechar"><X /></button><button className="lightbox-arrow prev" onClick={() => shiftPhoto(-1)} aria-label="Foto anterior"><ChevronLeft /></button><img src={images[photo].url} alt={property.title} /><button className="lightbox-arrow next" onClick={() => shiftPhoto(1)} aria-label="Próxima foto"><ChevronRight /></button><span>{photo + 1} / {images.length}</span></div>}
   </main><Footer /></>
 }

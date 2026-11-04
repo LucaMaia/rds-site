@@ -228,6 +228,14 @@ h1,h2,h3,p{margin-top:0}
 .inquiry-result{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:15px;border-radius:var(--radius-small);font-size:10px;line-height:1.6}
 .inquiry-result strong{font-size:12px}
 .inquiry-result .button{margin-top:4px}
+.inquiry-modal-backdrop{position:fixed;inset:0;z-index:40;display:grid;place-items:center;overflow-y:auto;padding:20px;background:rgba(20,21,18,.62);backdrop-filter:blur(3px)}
+.inquiry-modal{position:relative;width:min(560px,100%);max-height:calc(100vh - 40px);overflow-y:auto;padding:30px;background:#fff;border:1px solid #e9e7e0;border-radius:var(--radius-card);box-shadow:0 20px 70px rgba(0,0,0,.24)}
+.inquiry-modal-close{position:absolute;top:17px;right:17px;width:36px;height:36px;display:grid;place-items:center;border:1px solid #e9e7e0;background:#fff;color:#5f6059;cursor:pointer}
+.inquiry-modal h2{margin:8px 40px 8px 0;font:500 27px var(--serif);color:#33342e}
+.inquiry-modal>p{margin:0 25px 20px 0;color:#777870;font-size:11px;line-height:1.7}
+.inquiry-modal>p strong{color:#4b4c45;font-weight:600}
+.inquiry-modal-form{gap:13px}
+.inquiry-modal-form>.button{min-height:44px}
 .inquiry-honeypot{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
 .detail-price{font-size:25px;font-weight:600;letter-spacing:-.03em;margin:11px 0 3px}
 .detail-price span{display:block;font-size:9px;font-weight:400;color:#83847d;letter-spacing:0;margin-top:2px}
@@ -676,6 +684,9 @@ h1,h2,h3,p{margin-top:0}
 @media(max-width:520px){
   .property-inquiry-form{grid-template-columns:1fr}
   .property-inquiry-form>.admin-field,.inquiry-email-field,.inquiry-consent,.property-inquiry-form>.admin-alert,.property-inquiry-form>.button{grid-column:1}
+  .inquiry-modal-backdrop{padding:12px}
+  .inquiry-modal{max-height:calc(100vh - 24px);padding:24px 18px}
+  .inquiry-modal h2{font-size:23px}
 }
 @media(min-width:761px) and (max-width:1000px){
   .main-nav{gap:11px;font-size:10px}

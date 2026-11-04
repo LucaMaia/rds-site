@@ -193,11 +193,18 @@ function propertyRows(property: PropertyRecord, images: string[], broker: Contac
 }
 
 async function recordWhatsAppClick(baseUrl: string, serviceKey: string, propertyId: string) {
-  const properties = await restRows<PropertyRecord>(baseUrl, serviceKey, 'public_properties', {
-    select: propertyFields,
-    id: `eq.${propertyId}`,
-    limit: '1',
-  })
+  const [properties, settings] = await Promise.all([
+    restRows<PropertyRecord>(baseUrl, serviceKey, 'public_properties', {
+      select: propertyFields,
+      id: `eq.${propertyId}`,
+      limit: '1',
+    }),
+    restRows<{ contact_email: string | null }>(baseUrl, serviceKey, 'public_site_settings', {
+      select: 'contact_email',
+      id: 'eq.true',
+      limit: '1',
+    }),
+  ])
   const property = properties[0]
   if (!property) throw new HttpError(404, 'Este imóvel não está disponível para contato.')
 
@@ -311,10 +318,11 @@ Deno.serve(async (request) => {
     if (!ip) throw new HttpError(400, 'Não foi possível validar a origem da solicitação.')
     await consumeRateLimit(baseUrl, serviceKey, ip)
 
-    const [properties, settings] = await Promise.all([
-      restRows<PropertyRecord>(baseUrl, serviceKey, 'public_properties', { select: propertyFields, id: `eq.${propertyId}`, limit: '1' }),
-      restRows<{ contact_email: string | null }>(baseUrl, serviceKey, 'public_site_settings', { select: 'contact_email', id: 'eq.true', limit: '1' }),
-    ])
+    const properties = await restRows<PropertyRecord>(baseUrl, serviceKey, 'public_properties', {
+      select: propertyFields,
+      id: `eq.${propertyId}`,
+      limit: '1',
+    })
     const property = properties[0]
     if (!property) throw new HttpError(404, 'Este imóvel não está disponível para contato.')
     const interaction = {
