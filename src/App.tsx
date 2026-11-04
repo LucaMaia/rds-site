@@ -469,23 +469,114 @@ function propertyInput(property: Property | null): PropertyInput {
   return { ...blankInput, ...input }
 }
 
-function PropertyEditor({ property, captors, brokers, onCancel, onSaved }: {
+const propertyEditorDraftPrefix = 'rds-property-editor-draft:'
+const propertyEditorDraftLifetime = 5 * 60 * 1000
+
+interface PropertyEditorDraft {
+  updatedAt: number
+  values: PropertyInput
+  images: PropertyImage[]
+  videos: string
+  links: PropertyLink[]
+  activePortals: IntegrationPortal[]
+  hadPendingPhotos: boolean
+}
+
+function propertyEditorDraftKey(userId: string, propertyId: string | null) {
+  return `${propertyEditorDraftPrefix}${userId}:${propertyId ?? 'new'}`
+}
+
+function readPropertyEditorDraft(userId: string, propertyId: string | null): PropertyEditorDraft | null {
+  const key = propertyEditorDraftKey(userId, propertyId)
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return null
+    const draft: unknown = JSON.parse(raw)
+    if (!draft || typeof draft !== 'object') {
+      localStorage.removeItem(key)
+      return null
+    }
+    const candidate = draft as Partial<PropertyEditorDraft>
+    const valid = typeof candidate.updatedAt === 'number'
+      && Date.now() - candidate.updatedAt < propertyEditorDraftLifetime
+      && candidate.updatedAt <= Date.now()
+      && candidate.values != null
+      && Array.isArray(candidate.images)
+      && typeof candidate.videos === 'string'
+      && Array.isArray(candidate.links)
+      && Array.isArray(candidate.activePortals)
+    if (!valid) {
+      localStorage.removeItem(key)
+      return null
+    }
+    return candidate as PropertyEditorDraft
+  } catch (reason) {
+    console.error('Could not restore the property editor draft:', reason)
+    return null
+  }
+}
+
+function clearPropertyEditorDraft(userId: string, propertyId: string | null) {
+  try {
+    localStorage.removeItem(propertyEditorDraftKey(userId, propertyId))
+  } catch (reason) {
+    console.error('Could not clear the property editor draft:', reason)
+  }
+}
+
+function clearUserPropertyEditorDrafts(userId: string) {
+  try {
+    const prefix = `${propertyEditorDraftPrefix}${userId}:`
+    const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
+      .filter((key): key is string => key?.startsWith(prefix) ?? false)
+    keys.forEach((key) => localStorage.removeItem(key))
+  } catch (reason) {
+    console.error('Could not clear the administrator property drafts:', reason)
+  }
+}
+
+function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved }: {
   property: Property | null
+  userId: string
   captors: Captor[]
   brokers: Captor[]
   onCancel: () => void
   onSaved: () => void
 }) {
-  const [values, setValues] = useState<PropertyInput>(() => propertyInput(property))
-  const [images, setImages] = useState<PropertyImage[]>(property?.property_images ?? [])
+  const draftKey = propertyEditorDraftKey(userId, property?.id ?? null)
+  const [initialDraft] = useState(() => readPropertyEditorDraft(userId, property?.id ?? null))
+  const [values, setValues] = useState<PropertyInput>(() => initialDraft?.values ?? propertyInput(property))
+  const [images, setImages] = useState<PropertyImage[]>(() => initialDraft?.images ?? property?.property_images ?? [])
   const [photos, setPhotos] = useState<File[]>([])
-  const [videos, setVideos] = useState((property?.property_videos ?? []).map((video) => video.url).join('\n'))
-  const [links, setLinks] = useState<PropertyLink[]>(property?.property_links ?? [])
-  const [activePortals, setActivePortals] = useState<IntegrationPortal[]>(() => property?.integrations?.filter((integration) => integration.ativo).map((integration) => integration.portal) ?? [])
+  const [videos, setVideos] = useState(() => initialDraft?.videos ?? (property?.property_videos ?? []).map((video) => video.url).join('\n'))
+  const [links, setLinks] = useState<PropertyLink[]>(() => initialDraft?.links ?? property?.property_links ?? [])
+  const [activePortals, setActivePortals] = useState<IntegrationPortal[]>(() => initialDraft?.activePortals ?? property?.integrations?.filter((integration) => integration.ativo).map((integration) => integration.portal) ?? [])
+  const [draftRestored] = useState(Boolean(initialDraft))
+  const [draftError, setDraftError] = useState('')
+  const hadPendingPhotos = useRef(Boolean(initialDraft?.hadPendingPhotos))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const featureOptions = ['Piscina', 'Churrasqueira', 'Varanda', 'Varanda gourmet', 'Academia', 'Elevador', 'Portaria 24h', 'Playground', 'Salão de festas', 'Ar-condicionado', 'Armários planejados', 'Área de serviço', 'Jardim', 'Outros']
+  useEffect(() => {
+    const draft: PropertyEditorDraft = {
+      updatedAt: Date.now(),
+      values,
+      images,
+      videos,
+      links,
+      activePortals,
+      hadPendingPhotos: hadPendingPhotos.current || photos.length > 0,
+    }
+    try {
+      localStorage.setItem(draftKey, JSON.stringify(draft))
+      hadPendingPhotos.current = draft.hadPendingPhotos
+      setDraftError('')
+    } catch (reason) {
+      console.error('Could not save the property editor draft:', reason)
+      setDraftError('Não foi possível guardar o rascunho neste navegador.')
+    }
+  }, [activePortals, draftKey, images, links, photos.length, values, videos])
   function text(key: keyof PropertyInput, value: string) {
     setValues((current) => ({ ...current, [key]: value }))
   }
@@ -532,6 +623,7 @@ function PropertyEditor({ property, captors, brokers, onCancel, onSaved }: {
         }
       }
       await saveProperty(values, property?.id ?? null, photos, videoUrls, links, images, [], activePortals)
+      clearPropertyEditorDraft(userId, property?.id ?? null)
       setSuccess('Imóvel salvo com sucesso.')
       onSaved()
     } catch (reason) {
@@ -541,6 +633,8 @@ function PropertyEditor({ property, captors, brokers, onCancel, onSaved }: {
   const field = (label: string, key: keyof PropertyInput, type = 'text', required = false, placeholder = '') => <label className="admin-field">{label}<input type={type} required={required} value={String(values[key] ?? '')} placeholder={placeholder} onChange={(event) => type === 'number' ? numeric(key, event.target.value) : text(key, event.target.value)} /></label>
   return <form className="admin-editor" onSubmit={submit}>
     <div className="admin-page-heading editor-heading"><div><button type="button" className="back-button" onClick={onCancel}><ArrowLeft size={15} /> Todos os imóveis</button><h1>{property ? 'Editar imóvel' : 'Cadastrar imóvel'}</h1><p>Preencha os detalhes para manter sua carteira atualizada.</p></div></div>
+    <div className="admin-alert info-alert">{draftRestored ? 'Rascunho recuperado deste navegador. Ele será mantido por até 5 minutos após a última alteração.' : 'As alterações não salvas ficam guardadas neste navegador por até 5 minutos após a última alteração.'}{initialDraft?.hadPendingPhotos && ' As fotos locais selecionadas anteriormente precisam ser adicionadas novamente.'}</div>
+    {draftError && <div className="admin-alert error-alert">{draftError}</div>}
     {error && <div className="admin-alert error-alert">{error}</div>}{success && <div className="admin-alert success-alert">{success}</div>}
     <section className="form-section"><div className="form-section-heading"><span>01</span><div><h2>Identificação</h2><p>Informações básicas do anúncio</p></div></div><div className="admin-form-grid">
       {field('Título do imóvel', 'title', 'text', true, 'Ex.: Apartamento com vista livre')}
@@ -581,6 +675,7 @@ function PropertyEditor({ property, captors, brokers, onCancel, onSaved }: {
 function AdminPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const authUserId = useRef<string | null>(null)
   const [authorized, setAuthorized] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
   const [authError, setAuthError] = useState('')
@@ -622,26 +717,44 @@ function AdminPage() {
     let active = true
     supabase.auth.getSession().then(({ data, error }) => {
       if (error) setAuthError(error.message)
-      if (active) { setUser(data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null); setAuthLoading(false) }
+      if (active) {
+        const nextUser = data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null
+        authUserId.current = nextUser?.id ?? null
+        setUser(nextUser)
+        setAuthLoading(Boolean(nextUser))
+      }
     })
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (active) { setUser(session?.user ? { id: session.user.id, email: session.user.email } : null); setAuthorized(false) }
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return
+      const nextUser = session?.user ? { id: session.user.id, email: session.user.email } : null
+      const nextUserId = nextUser?.id ?? null
+      if (event === 'SIGNED_OUT' || nextUserId !== authUserId.current) {
+        authUserId.current = nextUserId
+        setUser(nextUser)
+        setAuthorized(false)
+        setAuthLoading(Boolean(nextUser))
+        if (nextUser) setAuthError('')
+        return
+      }
+      if (event === 'USER_UPDATED' && nextUser) setUser(nextUser)
     })
     return () => { active = false; listener.subscription.unsubscribe() }
   }, [])
 
   useEffect(() => {
-    if (!user || !supabase) { setAuthorized(false); return }
+    if (!user || !supabase) { setAuthorized(false); setAuthLoading(false); return }
     let active = true
+    setAuthLoading(true)
     supabase.from('profiles').select('role').eq('id', user.id).maybeSingle().then(async ({ data, error }) => {
       if (!active) return
-      if (error) { setAuthError(error.message); return }
-      if (data?.role === 'admin') { setAuthorized(true); return }
+      if (error) { setAuthError(error.message); setAuthorized(false); setAuthLoading(false); return }
+      if (data?.role === 'admin') { setAuthorized(true); setAuthLoading(false); return }
       await supabase?.auth.signOut()
       setAuthError('Esta conta não possui acesso administrativo.')
+      setAuthLoading(false)
     })
     return () => { active = false }
-  }, [user])
+  }, [user?.id])
 
   async function refreshData() {
     if (!authorized) return
@@ -679,6 +792,7 @@ function AdminPage() {
     if (!supabase) return
     const { error } = await supabase.auth.signOut()
     if (error) setAuthError(error.message)
+    if (user) clearUserPropertyEditorDrafts(user.id)
     setAuthorized(false)
   }
   function changeView(next: string, id?: string) {
@@ -694,6 +808,10 @@ function AdminPage() {
   function closeEditor() {
     setEditorOpened(false)
     changeView('properties')
+  }
+  function cancelEditor() {
+    if (user) clearPropertyEditorDraft(user.id, editorPropertyId)
+    closeEditor()
   }
   async function changeStatus(property: Property, status: PropertyStatus) {
     if (!window.confirm(`Alterar o status de ${property.code} para "${statusNames[status]}"?`)) return
@@ -832,7 +950,7 @@ function AdminPage() {
           <div className="admin-panel recent-panel"><div className="panel-heading"><div><h2>Atualizações recentes</h2><p>Seus últimos imóveis cadastrados</p></div><button className="text-link" onClick={() => changeView('properties')}>Ver todos <ArrowRight size={15} /></button></div><PropertyTable properties={properties.slice(0, 5)} onEdit={(item) => changeView('editor', item.id)} onDelete={(item) => void removeProperty(item)} onStatus={(item, status) => void changeStatus(item, status)} onDuplicate={(item) => void duplicateProperty(item)} /></div>
         </section>}
         {view === 'properties' && <section><div className="admin-page-heading"><div><span className="eyebrow gold">CARTEIRA IMOBILIÁRIA</span><h1>Todos os imóveis</h1><p>Gerencie, atualize e acompanhe seus anúncios.</p></div><button className="button button-dark" onClick={() => changeView('editor')}><Plus size={16} /> Cadastrar imóvel</button></div><div className="admin-panel listing-panel"><div className="admin-filters"><label className="admin-search"><Search size={16} /><input value={filter.query} onChange={(event) => setFilter((current) => ({ ...current, query: event.target.value }))} placeholder="Buscar por código, título, local ou captador" /></label><select value={filter.status} onChange={(event) => setFilter((current) => ({ ...current, status: event.target.value }))}><option value="">Todos os status</option>{statuses.map((status) => <option key={status} value={status}>{statusNames[status]}</option>)}</select><select value={filter.type} onChange={(event) => setFilter((current) => ({ ...current, type: event.target.value }))}><option value="">Todos os tipos</option>{propertyTypes.map((type) => <option key={type}>{type}</option>)}</select><select value={filter.captor} onChange={(event) => setFilter((current) => ({ ...current, captor: event.target.value }))}><option value="">Todos os captadores</option>{captors.map((captor) => <option key={captor.id} value={captor.id}>{captor.name}</option>)}</select></div><div className="listing-count">{filtered.length} imóveis encontrados</div><PropertyTable properties={filtered} onEdit={(item) => changeView('editor', item.id)} onDelete={(item) => void removeProperty(item)} onStatus={(item, status) => void changeStatus(item, status)} onDuplicate={(item) => void duplicateProperty(item)} /></div></section>}
-        {editorOpened && (!editorPropertyId || selectedProperty) && <div hidden={view !== 'editor'}><PropertyEditor key={editorPropertyId ?? 'new-property'} property={selectedProperty} captors={captors} brokers={brokers} onCancel={closeEditor} onSaved={() => { void refreshData(); closeEditor() }} /></div>}
+        {editorOpened && (!editorPropertyId || selectedProperty) && <div hidden={view !== 'editor'}><PropertyEditor key={`${user.id}:${editorPropertyId ?? 'new-property'}`} userId={user.id} property={selectedProperty} captors={captors} brokers={brokers} onCancel={cancelEditor} onSaved={() => { void refreshData(); closeEditor() }} /></div>}
         {view === 'team' && <section><div className="admin-page-heading"><div><span className="eyebrow gold">TIME RDS</span><h1>Captadores e corretores</h1><p>Gerencie os integrantes responsáveis por captar e atender os imóveis.</p></div></div><div className="team-columns"><section className="admin-panel"><div className="panel-heading"><div><h2>Integrantes cadastrados</h2><p>{team.length} pessoas no time</p></div></div><div className="team-list">{team.map((member) => { const broker = member.name.includes('· corretor'); const baseName = member.name.replace(' · corretor', ''); const associated = properties.filter((property) => broker ? property.broker_id === member.id : property.captor_id === member.id); return <div key={member.id} className={`team-row ${selectedMemberId === member.id ? 'selected' : ''}`}>        <button className="team-select" onClick={() => selectMember(member)}><span className="agent-avatar">{member.photo_url ? <img src={member.photo_url} alt="" /> : <CircleUserRound size={23} />}</span><span className="team-name"><strong>{baseName}</strong><span>{broker ? 'Corretor de atendimento' : 'Captador'} · {member.active ? 'Ativo' : 'Inativo'}</span></span><span className="team-count">{associated.length} imóveis</span></button><button className="member-status" onClick={() => void toggleMember(member)}>{member.active ? 'Desativar' : 'Ativar'}</button></div> })}{!team.length && <p className="muted-empty">Nenhum integrante cadastrado.</p>}</div>{selectedMember && <div className="member-profile"><span className="eyebrow gold">PERFIL DO INTEGRANTE</span><div className="member-profile-heading"><span className="agent-avatar">{selectedMember.photo_url ? <img src={selectedMember.photo_url} alt="" /> : <CircleUserRound size={23} />}</span><h3>{selectedMember.name.replace(' · corretor', '')}</h3></div><div className="member-stats">{statuses.map((status) => <span key={status}>{statusNames[status]} <strong>{properties.filter((property) => (selectedMember.name.includes('· corretor') ? property.broker_id : property.captor_id) === selectedMember.id && property.status === status).length}</strong></span>)}</div><div className="member-property-list">{properties.filter((property) => (selectedMember.name.includes('· corretor') ? property.broker_id : property.captor_id) === selectedMember.id).map((property) => <button key={property.id} onClick={() => changeView('editor', property.id)}>{property.code} · {property.title}<span>{statusNames[property.status]}</span></button>)}</div></div>}</section><section className="admin-panel add-member-panel"><div className="panel-heading"><div><h2>Adicionar integrante</h2><p>Cadastre captadores ou corretores de atendimento.</p></div></div>{memberError && <div className="admin-alert error-alert">{memberError}</div>}{memberSuccess && <div className="admin-alert success-alert">{memberSuccess}</div>}<form className="member-form" onSubmit={(event) => void addMember(event)}><label className="admin-field">Função<select value={memberKind} onChange={(event) => setMemberKind(event.target.value as 'captor' | 'broker')}><option value="captor">Captador</option><option value="broker">Corretor de atendimento</option></select></label><label className="admin-field">Nome<input required value={memberName} onChange={(event) => setMemberName(event.target.value)} placeholder="Nome completo" /></label><label className="admin-field">Telefone<input value={memberPhone} onChange={(event) => setMemberPhone(event.target.value)} placeholder="(61) 99999-9999" /></label><label className="admin-field">WhatsApp<input value={memberWhatsapp} onChange={(event) => setMemberWhatsapp(event.target.value)} placeholder="(61) 99999-9999" /></label><label className="admin-field">E-mail<input type="email" value={memberEmail} onChange={(event) => setMemberEmail(event.target.value)} placeholder="nome@rdsimoveis.com.br" /></label><label className="member-photo-upload"><span className="agent-avatar">{memberPhotoPreview ? <img src={memberPhotoPreview} alt="Prévia da foto selecionada" /> : <CircleUserRound size={23} />}</span><span><strong>{memberPhoto ? memberPhoto.name : 'Adicionar foto'}</strong><small>JPG, PNG ou WEBP · até 12 MB</small></span><input key={memberPhoto ? 'photo-selected' : 'photo-empty'} type="file" accept="image/jpeg,image/png,image/webp" onChange={chooseMemberPhoto} /></label><button className="button button-dark"><Plus size={16} /> Adicionar ao time</button></form></section></div></section>}
         {view === 'reports' && <section><div className="admin-page-heading"><div><span className="eyebrow gold">ANÁLISE DA CARTEIRA</span><h1>Relatórios</h1><p>Explore seus imóveis por período, status, tipo, finalidade e captador.</p></div></div><div className="admin-panel report-filter-panel"><div className="admin-filters"><select value={reportFilters.captor} onChange={(event) => setReportFilters((current) => ({ ...current, captor: event.target.value }))}><option value="">Todos os captadores</option>{captors.map((captor) => <option key={captor.id} value={captor.id}>{captor.name}</option>)}</select><select value={reportFilters.status} onChange={(event) => setReportFilters((current) => ({ ...current, status: event.target.value }))}><option value="">Todos os status</option>{statuses.map((status) => <option key={status} value={status}>{statusNames[status]}</option>)}</select><select value={reportFilters.type} onChange={(event) => setReportFilters((current) => ({ ...current, type: event.target.value }))}><option value="">Todos os tipos</option>{propertyTypes.map((type) => <option key={type}>{type}</option>)}</select><select value={reportFilters.purpose} onChange={(event) => setReportFilters((current) => ({ ...current, purpose: event.target.value }))}><option value="">Todas as finalidades</option><option value="VENDA">Venda</option><option value="ALUGUEL">Aluguel</option><option value="AMBOS">Ambos</option></select><input aria-label="Região" placeholder="Região" value={reportFilters.region} onChange={(event) => setReportFilters((current) => ({ ...current, region: event.target.value }))} /><label className="report-date">De<input type="date" value={reportFilters.from} onChange={(event) => setReportFilters((current) => ({ ...current, from: event.target.value }))} /></label><label className="report-date">Até<input type="date" value={reportFilters.to} onChange={(event) => setReportFilters((current) => ({ ...current, to: event.target.value }))} /></label><button className="clear-button" onClick={() => setReportFilters({ status: '', type: '', purpose: '', captor: '', region: '', from: '', to: '' })}>Limpar</button></div></div><div className="metric-grid report-metrics"><Metric label="Imóveis no recorte" value={reportProperties.length} icon={<Building2 />} /><Metric label="Publicados" value={reportProperties.filter((item) => item.status === 'PUBLICADO').length} icon={<Check />} tone="green" /><Metric label="Valor médio de venda" value={currency(Math.round(reportProperties.reduce((sum, item) => sum + (item.sale_price ?? 0), 0) / Math.max(1, reportProperties.filter((item) => item.sale_price != null).length)))} icon={<Square />} /><Metric label="Área média (m²)" value={Math.round(reportProperties.reduce((sum, item) => sum + (item.total_area ?? 0), 0) / Math.max(1, reportProperties.filter((item) => item.total_area != null).length))} icon={<Home />} /></div><div className="dashboard-charts"><section className="admin-panel"><div className="panel-heading"><div><h2>Imóveis por captador</h2><p>Distribuição no período e filtros selecionados</p></div></div><div className="status-chart">{captorCounts.map(([name, count]) => <div className="status-bar-row" key={name}><span>{name}</span><div className="bar-track"><div className="bar-fill" style={{ width: `${count / reportMax * 100}%` }} /></div><strong>{count}</strong></div>)}{!captorCounts.length && <p className="muted-empty">Nenhum imóvel corresponde aos filtros.</p>}</div></section><section className="admin-panel"><div className="panel-heading"><div><h2>Resultados filtrados</h2><p>Imóveis incluídos neste relatório</p></div></div><PropertyTable properties={reportProperties.slice(0, 12)} onEdit={(item) => changeView('editor', item.id)} onDelete={(item) => void removeProperty(item)} onStatus={(item, status) => void changeStatus(item, status)} onDuplicate={(item) => void duplicateProperty(item)} /></section></div></section>}
         {view === 'settings' && <section><div className="admin-page-heading"><div><span className="eyebrow gold">PRESENÇA DA IMOBILIÁRIA</span><h1>Configurações</h1><p>Essas informações aparecem nos contatos da área pública.</p></div></div><form className="admin-panel settings-form" onSubmit={(event) => void submitSettings(event)}><div className="panel-heading"><div><h2>Informações de contato</h2><p>Use canais oficiais da imobiliária para receber as solicitações.</p></div></div><div className="settings-fields"><label className="admin-field">Nome da imobiliária<input required value={settings.company_name} onChange={(event) => setSettings((current) => ({ ...current, company_name: event.target.value }))} /></label><label className="admin-field">WhatsApp<input value={settings.whatsapp} onChange={(event) => setSettings((current) => ({ ...current, whatsapp: event.target.value }))} placeholder="5561999999999" /></label><label className="admin-field">E-mail de contato<input type="email" value={settings.contact_email} onChange={(event) => setSettings((current) => ({ ...current, contact_email: event.target.value }))} placeholder="contato@empresa.com.br" /></label><label className="admin-field">Instagram (URL)<input type="url" value={settings.instagram_url} onChange={(event) => setSettings((current) => ({ ...current, instagram_url: event.target.value }))} placeholder="https://instagram.com/..." /></label></div>{settingsError && <div className="admin-alert error-alert">{settingsError}</div>}{settingsSuccess && <div className="admin-alert success-alert">{settingsSuccess}</div>}<div className="settings-submit"><button className="button button-dark">Salvar configurações</button></div></form></section>}
