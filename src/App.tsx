@@ -230,13 +230,10 @@ function SearchBox({ initialPurpose = 'VENDA' }: { initialPurpose?: string }) {
 
 function HomePage() {
   const [properties, setProperties] = useState<Property[]>([])
-  const [settings, setSettings] = useState({ company_name: 'RDS Imóveis', whatsapp: '', contact_email: '', instagram_url: '' })
-  const [settingsError, setSettingsError] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   useEffect(() => {
     getPublicProperties().then(setProperties).catch((reason: Error) => setError(reason.message)).finally(() => setLoading(false))
-    getSiteSettings().then(setSettings).catch((reason: Error) => setSettingsError(reason.message))
   }, [])
   const featured = properties.filter((property) => property.featured).slice(0, 7)
   const availableRegions = new Set(properties.map((property) => property.neighborhood))
@@ -266,7 +263,7 @@ function HomePage() {
         <div className="region-grid">{regions.map((region, index) => <Link key={region} to={`/imoveis?q=${encodeURIComponent(region)}`} className={`region-tile region-${index % 6 + 1}`}><span>{availableRegions.has(region) ? `${properties.filter((property) => property.neighborhood === region).length} IMÓVEIS` : `DF · ${String(index + 1).padStart(2, '0')}`}</span><strong>{region}</strong><ArrowUpRight size={18} /></Link>)}</div>
       </section>
       <section className="editorial section" id="sobre"><div className="editorial-image"><img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=85" alt="Sala ampla com luz natural" loading="lazy" /></div><div className="editorial-copy"><span className="eyebrow gold">MAIS DO QUE UM IMÓVEL</span><h2>Seu próximo capítulo começa com um <em>endereço.</em></h2><p>Acreditamos que encontrar um imóvel é encontrar um jeito de viver. Por isso, cada espaço da nossa curadoria é escolhido com atenção aos detalhes, à localização e às possibilidades que ele oferece.</p><Link to="/imoveis" className="button button-outline">Encontre seu lugar <ArrowRight size={16} /></Link></div></section>
-      <section className="contact-banner"><span className="eyebrow">ESTAMOS AQUI PARA AJUDAR</span><h2>O próximo passo é seu.</h2><p>{settingsError ? 'Nossos canais de contato estão temporariamente indisponíveis.' : 'Conte para a gente o que procura. Vamos encontrar juntos.'}</p>{settings.whatsapp && <a className="button button-light" href={whatsappContactUrl(settings.whatsapp)} target="_blank" rel="noreferrer">Fale com um especialista <ArrowUpRight size={16} /></a>}{!settings.whatsapp && settings.contact_email && <a className="button button-light" href={`mailto:${settings.contact_email}`}>Fale com um especialista <ArrowUpRight size={16} /></a>}</section>
+      <section className="contact-banner"><span className="eyebrow">ESTAMOS AQUI PARA AJUDAR</span><h2>O próximo passo é seu.</h2><p>Conte para a gente o que procura. Vamos encontrar juntos.</p></section>
     </main>
     <Footer />
   </>
