@@ -113,7 +113,7 @@ async function recordInteraction(
     method: 'POST',
     headers: {
       apikey: serviceKey,
-      Authorization: `******,
+      Authorization: `Bearer ${serviceKey}`,
       'Content-Type': 'application/json',
       Prefer: 'return=minimal',
     },
