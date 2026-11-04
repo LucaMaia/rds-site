@@ -33,12 +33,6 @@ const statusNames: Record<PropertyStatus, string> = {
   VENDIDO: 'Vendido', ALUGADO: 'Alugado', CANCELADO: 'Cancelado',
 }
 const imageFallback = 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1400&q=85'
-const regionFallbackImages = [
-  'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=550&q=75',
-  'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=550&q=75',
-  'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=550&q=75',
-  'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=550&q=75',
-]
 const instagramUrl = 'https://www.instagram.com/rds.imoveis/'
 const youtubeUrl = 'https://www.youtube.com/@RDSIMOVEISimoveis'
 
@@ -299,22 +293,20 @@ function HomePage() {
     getPublicProperties().then(setProperties).catch((reason: Error) => setError(reason.message)).finally(() => setLoading(false))
   }, [])
   const featured = properties.filter((property) => property.featured).slice(0, 7)
-  const regionCards = useMemo(() => regions.map((region, index) => {
+  const regionCards = useMemo(() => regions.map((region) => {
     const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR')
     const normalizedRegion = normalize(region)
     const matchingProperties = properties.filter((property) => {
       const neighborhood = normalize(property.neighborhood)
       return neighborhood === normalizedRegion || neighborhood.startsWith(`${normalizedRegion} `)
     })
-    const propertyWithPhoto = matchingProperties.find((property) => property.property_images?.length)
-    const selectedProperty = propertyWithPhoto ?? matchingProperties[0]
+    const selectedProperty = matchingProperties[0]
     const propertyPhoto = selectedProperty?.property_images?.find((image) => image.is_cover)?.url
       ?? selectedProperty?.property_images?.[0]?.url
-    const fallbackIndex = Math.floor(Math.random() * regionFallbackImages.length)
     return {
       region,
       count: matchingProperties.length,
-      photo: propertyPhoto ?? regionFallbackImages[fallbackIndex] ?? regionFallbackImages[index % regionFallbackImages.length],
+      photo: propertyPhoto ?? null,
     }
   }), [properties])
   return <>
@@ -340,7 +332,7 @@ function HomePage() {
       </section>
       <section className="regions-section" id="regioes">
         <div className="section region-intro"><span className="eyebrow gold">ONDE VOCÊ QUER VIVER?</span><h2>Regiões que<br /><em>inspiram.</em></h2><p>Da vida tranquila perto do verde ao ritmo vibrante da cidade, há um endereço esperando por você.</p><Link to="/imoveis" className="text-link">Explorar regiões <ArrowRight size={16} /></Link></div>
-        <div className="region-grid">{regionCards.map(({ region, count, photo }, index) => <Link key={region} to={`/imoveis?q=${encodeURIComponent(region)}`} className="region-tile" style={{ backgroundImage: `url("${photo}")` }}><span>{count ? `${count} IMÓVEIS` : `DF · ${String(index + 1).padStart(2, '0')}`}</span><strong>{region}</strong><ArrowUpRight size={18} /></Link>)}</div>
+        <div className="region-grid">{regionCards.map(({ region, count, photo }, index) => <Link key={region} to={`/imoveis?q=${encodeURIComponent(region)}`} className="region-tile" style={photo ? { backgroundImage: `url("${photo}")` } : undefined}><span>{count ? `${count} IMÓVEIS` : `DF · ${String(index + 1).padStart(2, '0')}`}</span><strong>{region}</strong><ArrowUpRight size={18} /></Link>)}</div>
       </section>
       <section className="editorial section" id="sobre"><div className="editorial-image"><img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=85" alt="Sala ampla com luz natural" loading="lazy" /></div><div className="editorial-copy"><span className="eyebrow gold">MAIS DO QUE UM IMÓVEL</span><h2>Seu próximo capítulo começa com um <em>endereço.</em></h2><p>Acreditamos que encontrar um imóvel é encontrar um jeito de viver. Por isso, cada espaço da nossa curadoria é escolhido com atenção aos detalhes, à localização e às possibilidades que ele oferece.</p><Link to="/imoveis" className="button button-outline">Encontre seu lugar <ArrowRight size={16} /></Link></div></section>
       <section className="contact-banner"><span className="eyebrow">ESTAMOS AQUI PARA AJUDAR</span><h2>O próximo passo é seu.</h2><p>Conte para a gente o que procura. Vamos encontrar juntos.</p></section>
