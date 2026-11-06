@@ -187,6 +187,27 @@ export async function saveSiteSettings(settings: Omit<SiteSettings, 'id'>): Prom
   if (error) throw error
 }
 
+export async function getDfImoveisCustomerCode(): Promise<string> {
+  const client = requireSupabase()
+  const { data, error } = await client
+    .from('portal_configurations')
+    .select('customer_code')
+    .eq('portal', 'dfimoveis')
+    .maybeSingle()
+  if (error) throw error
+  return data?.customer_code ?? ''
+}
+
+export async function saveDfImoveisCustomerCode(customerCode: string): Promise<void> {
+  const client = requireSupabase()
+  const { error } = await client.from('portal_configurations').upsert({
+    portal: 'dfimoveis',
+    customer_code: customerCode.trim(),
+    updated_at: new Date().toISOString(),
+  })
+  if (error) throw error
+}
+
 export async function updateTeamMember(kind: 'captor' | 'broker', id: string, active: boolean): Promise<void> {
   const client = requireSupabase()
   const table = kind === 'captor' ? 'captors' : 'brokers'

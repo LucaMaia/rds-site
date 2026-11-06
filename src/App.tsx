@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Bath, BedDouble, Building2, Check,
-  ChevronDown, ChevronLeft, ChevronRight, CircleUserRound, DoorOpen, Filter, Home, Instagram,
+  ChevronDown, ChevronLeft, ChevronRight, CircleUserRound, Clipboard, DoorOpen, Filter, Home, Instagram,
   KeyRound, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Youtube,
   Square, Trash2, Upload, Users, X,
 } from 'lucide-react'
-import { deleteProperty, deleteTeamMember, getAdminProperties, getPropertyInteractions, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveProperty, saveSiteSettings, saveTeamMember, sendPropertyInquiry, trackPropertyWhatsAppClick, updatePropertyStatus, updateTeamMember } from './lib/data'
+import { deleteProperty, deleteTeamMember, getAdminProperties, getDfImoveisCustomerCode, getPropertyInteractions, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveDfImoveisCustomerCode, saveProperty, saveSiteSettings, saveTeamMember, sendPropertyInquiry, trackPropertyWhatsAppClick, updatePropertyStatus, updateTeamMember } from './lib/data'
+import { dfImoveisMissingFields, dfImoveisSubtypes, dfImoveisTypes } from './lib/dfimoveis'
 import { currency, numberValue, whatsappContactUrl, whatsappUrl, youtubeEmbed } from './lib/format'
 import { supabase } from './lib/supabase'
 import type { Captor, IntegrationPortal, Property, PropertyImage, PropertyInput, PropertyInteraction, PropertyLink, PropertyStatus } from './types'
@@ -600,10 +601,10 @@ function DetailPage() {
 }
 
 const blankInput: PropertyInput = {
-  code: '', title: '', type: 'Apartamento', purpose: 'VENDA', status: 'CRIADO', captor_id: null, broker_id: null,
+  code: '', title: '', type: 'Apartamento', dfimoveis_type: null, dfimoveis_subtype: null, purpose: 'VENDA', status: 'CRIADO', captor_id: null, broker_id: null,
   zip_code: null, state: 'Distrito Federal', city: 'Brasília', neighborhood: '', address: null, number: null, complement: null,
   sale_price: null, rent_price: null, condo_fee: null, property_tax: null, tax_frequency: null,
-  total_area: null, private_area: null, bedrooms: 0, suites: 0, bathrooms: 0, parking_spaces: 0,
+  total_area: null, private_area: null, land_area: null, bedrooms: 0, suites: 0, bathrooms: 0, parking_spaces: 0,
   floor: null, construction_year: null, furnished: false, financing: false, trade: false, features: [],
   owner_name: null, owner_phone: null, living_rooms: null, social_balcony: false, infrastructure: [], service_areas: [],
   leisure_areas: [], intimate_features: [], closets: [], floor_types: [], description: '', featured: false,
@@ -843,6 +844,12 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
         owner_name: values.owner_name?.trim() || null,
         owner_phone: values.owner_phone?.trim() || null,
       }
+      if (activePortals.includes('dfimoveis')) {
+        const missing = dfImoveisMissingFields(propertyValues)
+        if (missing.length) {
+          throw new Error(`Para incluir este imóvel no feed do DF Imóveis, preencha: ${missing.join(', ')}.`)
+        }
+      }
       await saveProperty(propertyValues, property?.id ?? null, photos, videoUrls, links, images, [], activePortals)
       clearPropertyEditorDraft(userId, property?.id ?? null)
       setSuccess('Imóvel salvo com sucesso.')
@@ -903,7 +910,7 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
     </div></section>
     <section className="form-section"><div className="form-section-heading"><span>15</span><div><h2>Vídeos</h2><p>Adicione links do YouTube, um por linha</p></div></div><label className="admin-field">Links de vídeo<textarea rows={3} value={videos} onChange={(event) => setVideos(event.target.value)} placeholder="https://www.youtube.com/watch?v=..." /></label></section>
     <section className="form-section"><div className="form-section-heading"><span>16</span><div><h2>Links externos</h2><p>Tour virtual, redes sociais ou outros portais</p></div></div><div className="link-editor-list">{links.map((link, index) => <div className="link-editor-row" key={link.id || `new-${index}`}><input placeholder="Nome do link" value={link.name} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} /><input placeholder="URL https://" value={link.url} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, url: event.target.value } : item))} /><input placeholder="URL da imagem / logotipo (opcional)" value={link.image_url ?? ''} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, image_url: event.target.value || null } : item))} /><label className="check-field"><input type="checkbox" checked={link.is_public} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, is_public: event.target.checked } : item))} />Público</label><button type="button" className="icon-button" onClick={() => moveLink(index, -1)} aria-label="Mover link para cima"><ArrowUp size={14} /></button><button type="button" className="icon-button" onClick={() => moveLink(index, 1)} aria-label="Mover link para baixo"><ArrowDown size={14} /></button><button type="button" className="icon-button danger" onClick={() => setLinks((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label="Excluir link"><Trash2 size={16} /></button></div>)}<button type="button" className="add-link" onClick={() => setLinks((current) => [...current, { id: '', property_id: property?.id ?? '', name: '', url: '', image_url: null, is_public: true, display_order: current.length }])}><Plus size={16} /> Adicionar link</button></div></section>
-    <section className="form-section"><div className="form-section-heading"><span>17</span><div><h2>Portais imobiliários</h2><p>Selecione onde este imóvel deverá ser preparado para publicação</p></div></div><p className="integration-notice">Esta seleção apenas registra sua intenção no sistema. Ainda não gera XML nem publica o anúncio nos portais.</p><div className="integration-options">{([['olx', 'OLX'], ['wimoveis', 'Wimóveis']] as const).map(([portal, label]) => <label className="check-field integration-option" key={portal}><input type="checkbox" checked={activePortals.includes(portal)} onChange={(event) => setActivePortals((current) => event.target.checked ? [...current, portal] : current.filter((item) => item !== portal))} /><span><strong>{label}</strong><small>Incluir este imóvel na seleção futura do feed</small></span></label>)}</div></section>
+    <section className="form-section"><div className="form-section-heading"><span>17</span><div><h2>Portais imobiliários</h2><p>Selecione onde este imóvel deverá ser preparado para publicação</p></div></div><p className="integration-notice">O feed XML do DF Imóveis é atualizado automaticamente. Ele inclui somente imóveis salvos, selecionados para o portal, com status Publicado e dados obrigatórios preenchidos.</p><div className="integration-options">{([['olx', 'OLX'], ['wimoveis', 'Wimóveis'], ['dfimoveis', 'DF Imóveis']] as const).map(([portal, label]) => <label className="check-field integration-option" key={portal}><input type="checkbox" checked={activePortals.includes(portal)} onChange={(event) => setActivePortals((current) => event.target.checked ? [...current, portal] : current.filter((item) => item !== portal))} /><span><strong>{label}</strong><small>{portal === 'dfimoveis' ? 'Incluir este imóvel no feed XML' : 'Incluir este imóvel na seleção do portal'}</small></span></label>)}</div>{activePortals.includes('dfimoveis') && <div className="admin-form-grid"><label className="admin-field">Tipo no DF Imóveis<select required value={values.dfimoveis_type ?? ''} onChange={(event) => setValues((current) => ({ ...current, dfimoveis_type: event.target.value || null, dfimoveis_subtype: null }))}><option value="">Selecione o tipo</option>{dfImoveisTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label className="admin-field">Subtipo no DF Imóveis<select required disabled={!values.dfimoveis_type} value={values.dfimoveis_subtype ?? ''} onChange={(event) => setValues((current) => ({ ...current, dfimoveis_subtype: event.target.value || null }))}><option value="">Selecione o subtipo</option>{(dfImoveisSubtypes[values.dfimoveis_type ?? ''] ?? []).map((subtype) => <option key={subtype} value={subtype}>{subtype}</option>)}</select></label>{field('Área do terreno (m²)', 'land_area', 'number', true)}<p className="integration-notice">O tipo e o subtipo seguem as opções da documentação do DF Imóveis. Se faltar algum dado obrigatório, o imóvel não será salvo com a publicação marcada.</p></div>}</section>
     <div className="editor-bottom"><button type="button" className="button button-outline" onClick={onCancel}>Cancelar</button><button className="button button-dark" disabled={saving}>{saving ? 'Salvando...' : 'Salvar imóvel'}</button></div>
   </form>
 }
@@ -950,6 +957,11 @@ function AdminPage() {
   const [settings, setSettings] = useState({ company_name: 'RDS Imóveis', whatsapp: '', contact_email: '', instagram_url: '' })
   const [settingsError, setSettingsError] = useState('')
   const [settingsSuccess, setSettingsSuccess] = useState('')
+  const [dfImoveisCustomerCode, setDfImoveisCustomerCode] = useState('')
+  const [dfImoveisConfigLoading, setDfImoveisConfigLoading] = useState(false)
+  const [dfImoveisConfigSaving, setDfImoveisConfigSaving] = useState(false)
+  const [dfImoveisConfigError, setDfImoveisConfigError] = useState('')
+  const [dfImoveisConfigSuccess, setDfImoveisConfigSuccess] = useState('')
   const [memberError, setMemberError] = useState('')
   const [memberSuccess, setMemberSuccess] = useState('')
   const [reportPropertyPage, setReportPropertyPage] = useState(1)
@@ -1035,6 +1047,19 @@ function AdminPage() {
     finally { setLoadingData(false) }
   }
   useEffect(() => { void refreshData() }, [authorized])
+  useEffect(() => {
+    if (view !== 'settings' || !authorized) return
+    let active = true
+    setDfImoveisConfigLoading(true)
+    setDfImoveisConfigError('')
+    getDfImoveisCustomerCode()
+      .then((customerCode) => { if (active) setDfImoveisCustomerCode(customerCode) })
+      .catch((reason) => {
+        if (active) setDfImoveisConfigError(reason instanceof Error ? reason.message : 'Não foi possível carregar a configuração do DF Imóveis.')
+      })
+      .finally(() => { if (active) setDfImoveisConfigLoading(false) })
+    return () => { active = false }
+  }, [authorized, view])
   useEffect(() => {
     if (view !== 'reports' || !authorized) return
     let active = true
@@ -1210,6 +1235,29 @@ function AdminPage() {
       setSettingsSuccess('Configurações salvas. Os canais públicos já estão atualizados.')
     } catch (reason) { setSettingsError(reason instanceof Error ? reason.message : 'Não foi possível salvar as configurações.') }
   }
+  async function submitDfImoveisSettings(event: React.FormEvent) {
+    event.preventDefault()
+    setDfImoveisConfigError('')
+    setDfImoveisConfigSuccess('')
+    setDfImoveisConfigSaving(true)
+    try {
+      await saveDfImoveisCustomerCode(dfImoveisCustomerCode)
+      setDfImoveisConfigSuccess('Código do cliente salvo. O feed XML já usará esse valor.')
+    } catch (reason) {
+      setDfImoveisConfigError(reason instanceof Error ? reason.message : 'Não foi possível salvar a configuração do DF Imóveis.')
+    } finally {
+      setDfImoveisConfigSaving(false)
+    }
+  }
+  async function copyDfImoveisFeedUrl() {
+    try {
+      await navigator.clipboard.writeText(dfFeedUrl)
+      setDfImoveisConfigError('')
+      setDfImoveisConfigSuccess('URL do feed copiada.')
+    } catch (reason) {
+      setDfImoveisConfigError(reason instanceof Error ? `Não foi possível copiar a URL: ${reason.message}` : 'Não foi possível copiar a URL do feed.')
+    }
+  }
 
   if (authLoading) return <div className="admin-loading"><Loading message="Verificando sessão" /></div>
   if (!user || !authorized) return <main className="login-page"><Link to="/" className="login-back"><ArrowLeft size={15} /> Voltar ao site</Link><div className="login-card"><Link className="brand login-brand" to="/" aria-label="RDS Imóveis, início"><span className="brand-logo-frame"><img className="brand-logo" src="/rds-logo.png" alt="" /></span></Link><span className="eyebrow gold">ESPAÇO DA EQUIPE</span><h1>Acesse sua<br /><em>área de gestão.</em></h1><p>Entre para gerenciar seus imóveis e acompanhar a carteira.</p>{!isSupabaseConfigured && <div className="admin-alert info-alert">O site público está em modo de demonstração. Configure o Supabase para habilitar o acesso administrativo e a persistência.</div>}{authError && <div className="admin-alert error-alert">{authError}</div>}<form onSubmit={login}><label className="admin-field">Usuário ou e-mail<input value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" required placeholder="admin" /></label><label className="admin-field">Senha<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required placeholder="Sua senha" /></label><button className="button button-dark full-button" disabled={loginLoading}><KeyRound size={16} />{loginLoading ? 'Verificando...' : 'Entrar na plataforma'}</button></form><span className="login-security"><KeyRound size={13} /> Acesso protegido e reservado à equipe RDS</span></div></main>
@@ -1223,6 +1271,13 @@ function AdminPage() {
   const paginatedFilteredProperties = filtered.slice((currentPropertyListPage - 1) * 5, currentPropertyListPage * 5)
   const selectedProperty = properties.find((property) => property.id === editorPropertyId) ?? null
   const selectedMember = team.find((member) => member.id === selectedMemberId) ?? null
+  const dfSelectedProperties = properties.filter((property) => property.integrations?.some((integration) => integration.portal === 'dfimoveis' && integration.ativo))
+  const dfPublishedProperties = dfSelectedProperties.filter((property) => property.status === 'PUBLICADO')
+  const dfReadyProperties = dfPublishedProperties.filter((property) => dfImoveisMissingFields(property).length === 0)
+  const dfPendingProperties = dfPublishedProperties
+    .map((property) => ({ property, missing: dfImoveisMissingFields(property) }))
+    .filter(({ missing }) => missing.length > 0)
+  const dfFeedUrl = `${window.location.origin}/integracoes/dfimoveis.xml`
   const statusCounts = statuses.map((status) => ({ status, count: properties.filter((property) => property.status === status).length }))
   const maxStatusCount = Math.max(1, ...statusCounts.map((item) => item.count))
   const locationCounts = Object.entries(properties.reduce<Record<string, number>>((acc, property) => { acc[property.neighborhood] = (acc[property.neighborhood] ?? 0) + 1; return acc }, {})).sort((a, b) => b[1] - a[1]).slice(0, 5)
@@ -1500,7 +1555,39 @@ function AdminPage() {
           </div>
         </section>}
         {view === 'reports' && <section className="portfolio-report-section"><div className="admin-page-heading"><div><span className="eyebrow gold">ANÁLISE DA CARTEIRA</span><h1>Relatórios</h1><p>Explore seus imóveis por período, status, tipo, finalidade e captador.</p></div></div><div className="admin-panel report-filter-panel"><div className="admin-filters"><select value={reportFilters.captor} onChange={(event) => setReportFilters((current) => ({ ...current, captor: event.target.value }))}><option value="">Todos os captadores</option>{captors.map((captor) => <option key={captor.id} value={captor.id}>{captor.name}</option>)}</select><select value={reportFilters.status} onChange={(event) => setReportFilters((current) => ({ ...current, status: event.target.value }))}><option value="">Todos os status</option>{statuses.map((status) => <option key={status} value={status}>{statusNames[status]}</option>)}</select><select value={reportFilters.type} onChange={(event) => setReportFilters((current) => ({ ...current, type: event.target.value }))}><option value="">Todos os tipos</option>{propertyTypes.map((type) => <option key={type}>{type}</option>)}</select><select value={reportFilters.purpose} onChange={(event) => setReportFilters((current) => ({ ...current, purpose: event.target.value }))}><option value="">Todas as finalidades</option><option value="VENDA">Venda</option><option value="ALUGUEL">Aluguel</option><option value="AMBOS">Ambos</option></select><input aria-label="Região" placeholder="Região" value={reportFilters.region} onChange={(event) => setReportFilters((current) => ({ ...current, region: event.target.value }))} /><label className="report-date">De<input type="date" value={reportFilters.from} onChange={(event) => setReportFilters((current) => ({ ...current, from: event.target.value }))} /></label><label className="report-date">Até<input type="date" value={reportFilters.to} onChange={(event) => setReportFilters((current) => ({ ...current, to: event.target.value }))} /></label><button className="clear-button" onClick={() => setReportFilters({ status: '', type: '', purpose: '', captor: '', region: '', from: '', to: '' })}>Limpar</button></div></div><div className="metric-grid report-metrics"><Metric label="Imóveis no recorte" value={reportProperties.length} icon={<Building2 />} /><Metric label="Publicados" value={reportProperties.filter((item) => item.status === 'PUBLICADO').length} icon={<Check />} tone="green" /><Metric label="Valor médio de venda" value={currency(Math.round(reportProperties.reduce((sum, item) => sum + (item.sale_price ?? 0), 0) / Math.max(1, reportProperties.filter((item) => item.sale_price != null).length)))} icon={<Square />} /><Metric label="Área média (m²)" value={Math.round(reportProperties.reduce((sum, item) => sum + (item.total_area ?? 0), 0) / Math.max(1, reportProperties.filter((item) => item.total_area != null).length))} icon={<Home />} /></div><div className="dashboard-charts"><section className="admin-panel"><div className="panel-heading"><div><h2>Imóveis por captador</h2><p>Distribuição no período e filtros selecionados</p></div></div><div className="status-chart">{captorCounts.map(([name, count]) => <div className="status-bar-row" key={name}><span>{name}</span><div className="bar-track"><div className="bar-fill" style={{ width: `${count / reportMax * 100}%` }} /></div><strong>{count}</strong></div>)}{!captorCounts.length && <p className="muted-empty">Nenhum imóvel corresponde aos filtros.</p>}</div></section><section className="admin-panel"><div className="panel-heading"><div><h2>Resultados filtrados</h2><p>{reportProperties.length} imóveis encontrados</p></div></div><PropertyTable properties={paginatedReportProperties} onEdit={(item) => changeView('editor', item.id)} onDelete={(item) => void removeProperty(item)} onStatus={(item, status) => void changeStatus(item, status)} onDuplicate={(item) => void duplicateProperty(item)} /><div className="report-pagination"><span>{reportProperties.length ? `Exibindo ${(currentReportPropertyPage - 1) * 5 + 1}–${Math.min(currentReportPropertyPage * 5, reportProperties.length)} de ${reportProperties.length} imóveis` : 'Nenhum imóvel para exibir'}</span><div><button type="button" className="button button-outline" aria-label="Página anterior" disabled={currentReportPropertyPage <= 1} onClick={() => setReportPropertyPage((page) => Math.max(1, page - 1))}><ChevronLeft size={15} /> Anterior</button><span>Página {currentReportPropertyPage} de {reportPropertyPageCount}</span><button type="button" className="button button-outline" aria-label="Próxima página" disabled={currentReportPropertyPage >= reportPropertyPageCount} onClick={() => setReportPropertyPage((page) => Math.min(reportPropertyPageCount, page + 1))}>Próxima <ChevronRight size={15} /></button></div></div></section></div></section>}
-        {view === 'settings' && <section><div className="admin-page-heading"><div><span className="eyebrow gold">PRESENÇA DA IMOBILIÁRIA</span><h1>Configurações</h1><p>Essas informações aparecem nos contatos da área pública.</p></div></div><form className="admin-panel settings-form" onSubmit={(event) => void submitSettings(event)}><div className="panel-heading"><div><h2>Informações de contato</h2><p>Use canais oficiais da imobiliária para receber as solicitações.</p></div></div><div className="settings-fields"><label className="admin-field">Nome da imobiliária<input required value={settings.company_name} onChange={(event) => setSettings((current) => ({ ...current, company_name: event.target.value }))} /></label><label className="admin-field">WhatsApp<input value={settings.whatsapp} onChange={(event) => setSettings((current) => ({ ...current, whatsapp: event.target.value }))} placeholder="5561999999999" /></label><label className="admin-field">E-mail de contato<input type="email" value={settings.contact_email} onChange={(event) => setSettings((current) => ({ ...current, contact_email: event.target.value }))} placeholder="contato@empresa.com.br" /></label><label className="admin-field">Instagram (URL)<input type="url" value={settings.instagram_url} onChange={(event) => setSettings((current) => ({ ...current, instagram_url: event.target.value }))} placeholder="https://instagram.com/..." /></label></div>{settingsError && <div className="admin-alert error-alert">{settingsError}</div>}{settingsSuccess && <div className="admin-alert success-alert">{settingsSuccess}</div>}<div className="settings-submit"><button className="button button-dark">Salvar configurações</button></div></form></section>}
+        {view === 'settings' && <section>
+          <div className="admin-page-heading"><div><span className="eyebrow gold">PRESENÇA DA IMOBILIÁRIA</span><h1>Configurações</h1><p>Essas informações aparecem nos contatos da área pública.</p></div></div>
+          <form className="admin-panel settings-form" onSubmit={(event) => void submitSettings(event)}>
+            <div className="panel-heading"><div><h2>Informações de contato</h2><p>Use canais oficiais da imobiliária para receber as solicitações.</p></div></div>
+            <div className="settings-fields">
+              <label className="admin-field">Nome da imobiliária<input required value={settings.company_name} onChange={(event) => setSettings((current) => ({ ...current, company_name: event.target.value }))} /></label>
+              <label className="admin-field">WhatsApp<input value={settings.whatsapp} onChange={(event) => setSettings((current) => ({ ...current, whatsapp: event.target.value }))} placeholder="5561999999999" /></label>
+              <label className="admin-field">E-mail de contato<input type="email" value={settings.contact_email} onChange={(event) => setSettings((current) => ({ ...current, contact_email: event.target.value }))} placeholder="contato@empresa.com.br" /></label>
+              <label className="admin-field">Instagram (URL)<input type="url" value={settings.instagram_url} onChange={(event) => setSettings((current) => ({ ...current, instagram_url: event.target.value }))} placeholder="https://instagram.com/..." /></label>
+            </div>
+            {settingsError && <div className="admin-alert error-alert">{settingsError}</div>}
+            {settingsSuccess && <div className="admin-alert success-alert">{settingsSuccess}</div>}
+            <div className="settings-submit"><button className="button button-dark">Salvar configurações</button></div>
+          </form>
+          <form className="admin-panel settings-form" onSubmit={(event) => void submitDfImoveisSettings(event)}>
+            <div className="panel-heading"><div><h2>Integração XML · DF Imóveis</h2><p>Informe o código de cliente fornecido pelo portal e compartilhe a URL do feed com o DF Imóveis.</p></div></div>
+            {dfImoveisConfigLoading
+              ? <div className="admin-loading-inline"><span className="spinner" />Carregando configuração...</div>
+              : <div className="settings-fields"><label className="admin-field">Código do cliente no DF Imóveis<input value={dfImoveisCustomerCode} onChange={(event) => setDfImoveisCustomerCode(event.target.value)} placeholder="Código fornecido pelo DF Imóveis" /></label></div>}
+            <div className="settings-fields">
+              <label className="admin-field">URL do feed XML<input readOnly value={dfFeedUrl} /></label>
+            </div>
+            <div className="settings-submit">
+              <button type="submit" className="button button-dark" disabled={dfImoveisConfigLoading || dfImoveisConfigSaving}>{dfImoveisConfigSaving ? 'Salvando...' : 'Salvar código do cliente'}</button>
+              <button type="button" className="button button-outline" onClick={() => void copyDfImoveisFeedUrl()}><Clipboard size={15} /> Copiar URL</button>
+              <a className="button button-outline" href={dfFeedUrl} target="_blank" rel="noreferrer">Abrir feed</a>
+            </div>
+            {dfImoveisConfigError && <div className="admin-alert error-alert" role="alert">{dfImoveisConfigError}</div>}
+            {dfImoveisConfigSuccess && <div className="admin-alert success-alert" role="status">{dfImoveisConfigSuccess}</div>}
+            <p className="integration-notice">Selecionados: {dfSelectedProperties.length} · Publicados: {dfPublishedProperties.length} · Prontos para o feed: {dfImoveisCustomerCode.trim() ? dfReadyProperties.length : 0}. O XML é gerado sob demanda; imóveis com status diferente de Publicado ou campos obrigatórios ausentes não são incluídos.</p>
+            {dfPendingProperties.length > 0 && <div className="integration-pending-list"><strong>Pendências nos imóveis publicados:</strong><ul>{dfPendingProperties.map(({ property, missing }) => <li key={property.id}>{property.code}: {missing.join(', ')}</li>)}</ul></div>}
+          </form>
+        </section>}
       </div>
     </main>
   </div>

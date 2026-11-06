@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/integracoes/dfimoveis.xml",
+      "destination": "https://hfkfmtibaezhocidxmdw.supabase.co/functions/v1/dfimoveis-feed"
+    },
+    {
       "source": "/(.*)",
       "destination": "/"
     }

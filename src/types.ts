@@ -48,6 +48,8 @@ export interface Property {
   code: string
   title: string
   type: string
+  dfimoveis_type?: string | null
+  dfimoveis_subtype?: string | null
   purpose: Purpose
   status: PropertyStatus
   captor_id: string | null
@@ -66,6 +68,7 @@ export interface Property {
   tax_frequency: string | null
   total_area: number | null
   private_area: number | null
+  land_area?: number | null
   bedrooms: number
   suites: number
   bathrooms: number
@@ -179,12 +182,14 @@ export interface PropertyIntegration {
   atualizado_em: string
 }
 
-export type IntegrationPortal = 'olx' | 'wimoveis'
+export type IntegrationPortal = 'olx' | 'wimoveis' | 'dfimoveis'
 
 export interface PropertyInput {
   code: string
   title: string
   type: string
+  dfimoveis_type: string | null
+  dfimoveis_subtype: string | null
   purpose: Purpose
   status: PropertyStatus
   captor_id: string | null
@@ -203,6 +208,7 @@ export interface PropertyInput {
   tax_frequency: string | null
   total_area: number | null
   private_area: number | null
+  land_area: number | null
   bedrooms: number
   suites: number
   bathrooms: number
@@ -246,6 +252,7 @@ export interface Database {
       property_status_history: DbTable<PropertyStatusHistory>
       property_interactions: DbTable<PropertyInteraction, Partial<PropertyInteraction> & Pick<PropertyInteraction, 'property_code' | 'property_title' | 'property_neighborhood' | 'property_city' | 'property_state' | 'property_type' | 'property_purpose' | 'property_status' | 'property_created_at' | 'interested_name' | 'interested_email' | 'interested_phone' | 'interaction_type'>>
       imovel_integracoes: DbTable<PropertyIntegration, Partial<PropertyIntegration> & Pick<PropertyIntegration, 'imovel_id' | 'portal'>>
+      portal_configurations: DbTable<{ portal: IntegrationPortal; customer_code: string; updated_at: string }>
       profiles: DbTable<{ id: string; role: string; full_name: string | null }>
       site_settings: DbTable<SiteSettings>
     }

@@ -68,9 +68,17 @@ A função limita envios e cliques por IP em limites separados, valida as solici
 
 ## Integrações XML com portais
 
-A Etapa 1 adiciona a tabela `public.imovel_integracoes`, que relaciona imóveis a `olx` ou `wimoveis`, impede duplicidade por imóvel/portal e restringe o acesso direto a administradores autenticados via RLS. A role `service_role` recebe leitura para uso exclusivo no backend das futuras Edge Functions; ela nunca deve ser usada no frontend. A migration deve ser aplicada no projeto Supabase antes de usar os controles de portais do painel.
+O feed do DF Imóveis é gerado dinamicamente pela Edge Function `dfimoveis-feed`; o XML não é salvo no banco. A URL pública do site é `/integracoes/dfimoveis.xml`. Para habilitar:
 
-O editor administrativo permite marcar se o imóvel deverá ser incluído futuramente na seleção de cada portal. Essa preferência é salva na tabela, mas não gera XML nem publica anúncios. Os formatos, campos obrigatórios, credenciais e tratamento de anúncios desativados serão implementados somente após confirmar as especificações oficiais e a aprovação de integração de cada portal.
+1. Aplique `supabase/migrations/20261106170000_dfimoveis_xml_feed.sql` no Supabase.
+2. Publique a função com `supabase functions deploy dfimoveis-feed`.
+3. No painel administrativo, abra **Configurações**, informe o código de cliente fornecido pelo DF Imóveis e salve.
+4. No cadastro/edição do imóvel, marque **DF Imóveis**, selecione o tipo e subtipo conforme a documentação e preencha as áreas exigidas. Depois, salve e altere o status para **Publicado**.
+5. Copie a URL exibida nas configurações e solicite ao DF Imóveis que configure a importação desse feed.
+
+O feed contém somente imóveis salvos, ativos para DF Imóveis e com status `PUBLICADO`. Campos obrigatórios ausentes impedem o imóvel específico de aparecer no XML e são mostrados nas configurações do painel. Novas alterações de cadastro, status, integração e fotos são refletidas na próxima solicitação do feed. As seleções anteriores de OLX e Wimóveis continuam preservadas.
+
+Essa integração disponibiliza um feed para o DF Imóveis importar; ela não envia anúncios por uma API de publicação direta. A documentação fornecida descreve o layout XML, não o mecanismo de recebimento do portal. A URL é pública para que o portal possa consultá-la; a chave `service_role` é usada apenas pela Edge Function e nunca deve ser colocada no frontend ou em variáveis `VITE_*`.
 
 ## Verificação
 

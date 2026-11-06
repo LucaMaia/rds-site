@@ -507,7 +507,9 @@ h1,h2,h3,p{margin-top:0}
 .report-metrics .metric-card>strong{font-family:"DM Sans",Arial,sans-serif;font-size:21px}
 .settings-form .panel-heading{padding:18px 20px}
 .settings-fields{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:15px}
-.settings-submit{border-top:1px solid #efede8;padding:14px 20px;display:flex;justify-content:flex-end}
+.settings-submit{border-top:1px solid #efede8;padding:14px 20px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.integration-pending-list{padding:0 20px 16px;color:#75694f;font-size:10px;line-height:1.6}
+.integration-pending-list ul{margin:6px 0 0;padding-left:18px}
 .status-history{margin-top:17px;border-top:1px solid #efede8;padding-top:14px}
 .status-history h3{font:500 13px var(--serif);margin:0 0 8px}
 .status-history>div{display:grid;grid-template-columns:145px 1fr 140px;gap:9px;padding:8px 0;border-bottom:1px solid #f1efea;font-size:8px;color:#777870}

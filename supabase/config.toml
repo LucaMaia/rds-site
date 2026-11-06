@@ -1,2 +1,5 @@
 [functions.property-inquiry]
 verify_jwt = false
+
+[functions.dfimoveis-feed]
+verify_jwt = false
