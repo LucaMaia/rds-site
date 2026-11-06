@@ -1377,7 +1377,7 @@ function AdminPage() {
             {emailInteractionsLoading && <div className="admin-loading-inline"><span className="spinner" />Carregando e-mails...</div>}
             <div className="panel-heading interaction-results-heading"><div><h3>{reportInteractions.length} e-mails encontrados</h3></div><button type="button" className="button button-outline" disabled={!reportInteractions.length} onClick={() => {
               const rows: Array<Array<string | number>> = [
-                ['Nome', 'E-mail', 'Telefone', 'Imóvel', 'Região', 'Data e horário', 'Status do atendimento'],
+                ['Nome', 'E-mail', 'Telefone', 'Imóvel', 'Região', 'Data e horário'],
                 ...reportInteractions.map((interaction) => [
                   interaction.interested_name ?? '',
                   interaction.interested_email ?? '',
@@ -1385,14 +1385,13 @@ function AdminPage() {
                   `${interaction.property_code} - ${interaction.property_title}`,
                   `${interaction.property_neighborhood}, ${interaction.property_city} - ${interaction.property_state}`,
                   new Date(interaction.occurred_at).toLocaleString('pt-BR'),
-                  interaction.status ?? '',
                 ]),
               ]
               downloadCsv('relatorio-emails-enviados.csv', rows)
             }}><ArrowDown size={15} /> Exportar CSV</button></div>
-            <div className="table-scroll interaction-table-scroll"><table className="property-table interaction-table"><thead><tr><th>Interessado</th><th>E-mail</th><th>Telefone</th><th>Imóvel</th><th>Região</th><th>Data e horário</th><th>Status do atendimento</th></tr></thead><tbody>
-              {paginatedReportInteractions.map((interaction) => <tr key={interaction.id}><td>{interaction.interested_name ?? '—'}</td><td>{interaction.interested_email ?? '—'}</td><td>{interaction.interested_phone ?? '—'}</td><td><strong>{interaction.property_code}</strong><small>{interaction.property_title}</small></td><td>{interaction.property_neighborhood}<small>{interaction.property_city} - {interaction.property_state}</small></td><td>{new Date(interaction.occurred_at).toLocaleString('pt-BR')}</td><td>{interaction.status ?? '—'}</td></tr>)}
-              {!reportInteractions.length && !emailInteractionsLoading && <tr><td colSpan={7}><div className="table-empty">{emailInteractionsError ? 'Não foi possível carregar os e-mails.' : 'Nenhum e-mail enviado corresponde aos filtros.'}</div></td></tr>}
+            <div className="table-scroll interaction-table-scroll"><table className="property-table interaction-table"><thead><tr><th>Interessado</th><th>E-mail</th><th>Telefone</th><th>Imóvel</th><th>Região</th><th>Data e horário</th></tr></thead><tbody>
+              {paginatedReportInteractions.map((interaction) => <tr key={interaction.id}><td>{interaction.interested_name ?? '—'}</td><td>{interaction.interested_email ?? '—'}</td><td>{interaction.interested_phone ?? '—'}</td><td><strong>{interaction.property_code}</strong><small>{interaction.property_title}</small></td><td>{interaction.property_neighborhood}<small>{interaction.property_city} - {interaction.property_state}</small></td><td>{new Date(interaction.occurred_at).toLocaleString('pt-BR')}</td></tr>)}
+              {!reportInteractions.length && !emailInteractionsLoading && <tr><td colSpan={6}><div className="table-empty">{emailInteractionsError ? 'Não foi possível carregar os e-mails.' : 'Nenhum e-mail enviado corresponde aos filtros.'}</div></td></tr>}
             </tbody></table></div>
             <div className="report-pagination">
               <span>{reportInteractions.length ? `Exibindo ${(currentReportEmailPage - 1) * 5 + 1}–${Math.min(currentReportEmailPage * 5, reportInteractions.length)} de ${reportInteractions.length} e-mails` : 'Nenhum e-mail para exibir'}</span>
@@ -1442,24 +1441,20 @@ function AdminPage() {
             {whatsappClickCounts.length > 0 && <div className="whatsapp-click-ranking"><h3>Imóveis com mais cliques</h3><div className="status-chart">{whatsappClickCounts.slice(0, 8).map(([name, count]) => <div className="status-bar-row" key={name}><span>{name}</span><div className="bar-track"><div className="bar-fill" style={{ width: `${count / maxWhatsAppClicks * 100}%` }} /></div><strong>{count}</strong></div>)}</div></div>}
             <div className="panel-heading interaction-results-heading"><div><h3>{reportWhatsAppInteractions.length} cliques encontrados</h3></div><button type="button" className="button button-outline" disabled={!reportWhatsAppInteractions.length} onClick={() => {
               const rows: Array<Array<string | number>> = [
-                ['Nome', 'E-mail', 'Telefone', 'Imóvel', 'Região', 'Data e horário', 'Tipo de interação', 'Origem', 'Status do atendimento'],
+                ['Imóvel', 'Captador', 'Região', 'Data e horário', 'Tipo de interação'],
                 ...reportWhatsAppInteractions.map((interaction) => [
-                  interaction.interested_name ?? '',
-                  interaction.interested_email ?? '',
-                  interaction.interested_phone ?? '',
                   `${interaction.property_code} - ${interaction.property_title}`,
+                  interaction.property_captor_name ?? properties.find((property) => property.id === interaction.property_id)?.captor?.name ?? '',
                   `${interaction.property_neighborhood}, ${interaction.property_city} - ${interaction.property_state}`,
                   new Date(interaction.occurred_at).toLocaleString('pt-BR'),
                   'Clique no WhatsApp',
-                  interaction.interaction_source ?? '',
-                  interaction.status ?? '',
                 ]),
               ]
               downloadCsv('relatorio-cliques-whatsapp.csv', rows)
             }}><ArrowDown size={15} /> Exportar CSV de cliques</button></div>
-            <div className="table-scroll interaction-table-scroll"><table className="property-table interaction-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Telefone</th><th>Imóvel</th><th>Região</th><th>Data e horário</th><th>Tipo de interação</th><th>Status</th></tr></thead><tbody>
-              {paginatedReportWhatsAppInteractions.map((interaction) => <tr key={interaction.id}><td>{interaction.interested_name ?? '—'}</td><td>{interaction.interested_email ?? '—'}</td><td>{interaction.interested_phone ?? '—'}</td><td><strong>{interaction.property_code}</strong><small>{interaction.property_title}</small></td><td>{interaction.property_neighborhood}<small>{interaction.property_city} - {interaction.property_state}</small></td><td>{new Date(interaction.occurred_at).toLocaleString('pt-BR')}</td><td>Clique no WhatsApp</td><td>{interaction.status ?? '—'}</td></tr>)}
-              {!reportWhatsAppInteractions.length && !whatsappInteractionsLoading && <tr><td colSpan={8}><div className="table-empty">{whatsappInteractionsError ? 'Não foi possível carregar os cliques.' : 'Nenhum clique encontrado. Confirme se a migration e a Edge Function property-inquiry foram atualizadas no Supabase e tente novamente.'}</div></td></tr>}
+            <div className="table-scroll interaction-table-scroll"><table className="property-table interaction-table"><thead><tr><th>Imóvel</th><th>Captador</th><th>Região</th><th>Data e horário</th><th>Tipo de interação</th></tr></thead><tbody>
+              {paginatedReportWhatsAppInteractions.map((interaction) => <tr key={interaction.id}><td><strong>{interaction.property_code}</strong><small>{interaction.property_title}</small></td><td>{interaction.property_captor_name ?? properties.find((property) => property.id === interaction.property_id)?.captor?.name ?? '—'}</td><td>{interaction.property_neighborhood}<small>{interaction.property_city} - {interaction.property_state}</small></td><td>{new Date(interaction.occurred_at).toLocaleString('pt-BR')}</td><td>Clique no WhatsApp</td></tr>)}
+              {!reportWhatsAppInteractions.length && !whatsappInteractionsLoading && <tr><td colSpan={5}><div className="table-empty">{whatsappInteractionsError ? 'Não foi possível carregar os cliques.' : 'Nenhum clique encontrado. Confirme se a migration e a Edge Function property-inquiry foram atualizadas no Supabase e tente novamente.'}</div></td></tr>}
             </tbody></table></div>
             <div className="report-pagination">
               <span>{reportWhatsAppInteractions.length ? `Exibindo ${(currentReportWhatsAppPage - 1) * 5 + 1}–${Math.min(currentReportWhatsAppPage * 5, reportWhatsAppInteractions.length)} de ${reportWhatsAppInteractions.length} cliques` : 'Nenhum clique para exibir'}</span>
