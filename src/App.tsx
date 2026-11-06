@@ -43,19 +43,6 @@ const regionFallbackImages = [
 const instagramUrl = 'https://www.instagram.com/rds.imoveis/'
 const youtubeUrl = 'https://www.youtube.com/@RDSIMOVEISimoveis'
 
-function propertyFeatures(property: Property): string[] {
-  return [...new Set([
-    ...property.features,
-    ...(property.infrastructure ?? []),
-    ...(property.service_areas ?? []),
-    ...(property.leisure_areas ?? []),
-    ...(property.intimate_features ?? []),
-    ...(property.closets ?? []),
-    ...(property.floor_types ?? []),
-    ...(property.social_balcony ? ['Sacada ou varanda na área social'] : []),
-  ])]
-}
-
 function SocialLinks({ className }: { className: string }) {
   return <div className={className}>
     <a href={instagramUrl} target="_blank" rel="noreferrer" aria-label="Acesse o Instagram da RDS Imóveis" title="Instagram da RDS Imóveis"><Instagram size={20} strokeWidth={1.8} /></a>
@@ -358,11 +345,11 @@ function ResultsPage() {
   const [properties, setProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [filtersOpen, setFiltersOpen] = useState(true)
+  const [filtersOpen, setFiltersOpen] = useState(() => !window.matchMedia('(max-width: 760px)').matches)
   const query = searchParams.get('q') ?? ''
   const purpose = searchParams.get('finalidade') ?? ''
   const [sort, setSort] = useState('recentes')
-  const [filters, setFilters] = useState({ type: searchParams.get('tipo') ?? '', state: '', city: '', neighborhood: '', min: '', max: '', areaMin: '', areaMax: '', beds: '', livingRooms: '', suites: '', baths: '', parking: '', feature: '' })
+  const [filters, setFilters] = useState({ type: searchParams.get('tipo') ?? '', state: '', neighborhood: '' })
   useEffect(() => {
     let active = true
     setLoading(true)
@@ -373,23 +360,11 @@ function ResultsPage() {
     const search = query.trim().toLocaleLowerCase('pt-BR')
     return properties.filter((property) => {
       const location = `${property.state} ${property.city} ${property.neighborhood} ${property.title} ${property.code}`.toLocaleLowerCase('pt-BR')
-      const price = purpose === 'ALUGUEL' ? property.rent_price : property.sale_price
       return (!search || location.includes(search)) &&
         (!purpose || property.purpose === purpose || property.purpose === 'AMBOS') &&
         (!filters.type || property.type === filters.type) &&
         (!filters.state || property.state.toLowerCase().includes(filters.state.toLowerCase())) &&
-        (!filters.city || property.city.toLowerCase().includes(filters.city.toLowerCase())) &&
-        (!filters.neighborhood || property.neighborhood.toLowerCase().includes(filters.neighborhood.toLowerCase())) &&
-        (!filters.min || (price != null && price >= Number(filters.min))) &&
-        (!filters.max || (price != null && price <= Number(filters.max))) &&
-        (!filters.areaMin || (property.total_area != null && property.total_area >= Number(filters.areaMin))) &&
-        (!filters.areaMax || (property.total_area != null && property.total_area <= Number(filters.areaMax))) &&
-        (!filters.beds || property.bedrooms >= Number(filters.beds)) &&
-        (!filters.livingRooms || (property.living_rooms != null && property.living_rooms >= Number(filters.livingRooms))) &&
-        (!filters.suites || property.suites >= Number(filters.suites)) &&
-        (!filters.baths || property.bathrooms >= Number(filters.baths)) &&
-        (!filters.parking || property.parking_spaces >= Number(filters.parking)) &&
-        (!filters.feature || propertyFeatures(property).includes(filters.feature))
+        (!filters.neighborhood || property.neighborhood.toLocaleLowerCase('pt-BR').includes(filters.neighborhood.toLocaleLowerCase('pt-BR')))
     }).sort((a, b) => {
       if (sort === 'menor-preco') return (a.sale_price ?? a.rent_price ?? 0) - (b.sale_price ?? b.rent_price ?? 0)
       if (sort === 'maior-preco') return (b.sale_price ?? b.rent_price ?? 0) - (a.sale_price ?? a.rent_price ?? 0)
@@ -399,31 +374,26 @@ function ResultsPage() {
   }, [properties, query, purpose, filters, sort])
   function setFilter(key: keyof typeof filters, value: string) { setFilters((current) => ({ ...current, [key]: value })) }
   function clearFilters() {
-    setFilters({ type: '', state: '', city: '', neighborhood: '', min: '', max: '', areaMin: '', areaMax: '', beds: '', livingRooms: '', suites: '', baths: '', parking: '', feature: '' })
+    setFilters({ type: '', state: '', neighborhood: '' })
     setSearchParams({})
   }
+  const activeFilterCount = Number(Boolean(purpose)) + Number(Boolean(filters.type)) + Number(Boolean(filters.state)) + Number(Boolean(filters.neighborhood))
+  const availableStates = [...new Set(properties.map((property) => property.state).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  const availableNeighborhoods = [...new Set(properties.map((property) => property.neighborhood).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
   return <><Header /><main className="results-page">
     <div className="results-heading"><div><span className="eyebrow gold">A SUA PRÓXIMA HISTÓRIA</span><h1>Encontre seu imóvel</h1><p>Explore espaços escolhidos para combinar com o seu jeito de viver.</p></div><div className="results-breadcrumb"><Link to="/">Início</Link><ChevronRight size={14} /> Imóveis</div></div>
     <div className="results-layout">
-      <aside className={`filter-panel ${filtersOpen ? '' : 'filters-collapsed'}`}>
-        <div className="filter-title"><span><SlidersHorizontal size={17} /> Filtros</span><button className="clear-button" onClick={clearFilters}>Limpar</button></div>
+      <aside id="property-filter-panel" className={`filter-panel ${filtersOpen ? '' : 'filters-collapsed'}`}>
+        <div className="filter-title"><span><SlidersHorizontal size={17} /> Filtros</span><div><button className="clear-button" onClick={clearFilters}>Limpar</button><button type="button" className="filter-close" onClick={() => setFiltersOpen(false)} aria-label="Fechar filtros"><X size={18} /></button></div></div>
         <label className="field-label">Finalidade<select value={purpose} onChange={(event) => { const params = new URLSearchParams(searchParams); event.target.value ? params.set('finalidade', event.target.value) : params.delete('finalidade'); setSearchParams(params) }}><option value="">Todas</option><option value="VENDA">Comprar</option><option value="ALUGUEL">Alugar</option></select></label>
         <label className="field-label">Tipo de imóvel<select value={filters.type} onChange={(event) => setFilter('type', event.target.value)}><option value="">Todos os tipos</option>{propertyTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
         <div className="filter-divider" />
         <span className="filter-group-title">Localização</span>
-        <label className="field-label">Estado<input value={filters.state} onChange={(event) => setFilter('state', event.target.value)} placeholder="Ex.: Distrito Federal" /></label>
-        <label className="field-label">Cidade<input value={filters.city} onChange={(event) => setFilter('city', event.target.value)} placeholder="Ex.: Brasília" /></label>
-        <label className="field-label">Região / bairro<input value={filters.neighborhood} onChange={(event) => setFilter('neighborhood', event.target.value)} placeholder="Ex.: Asa Sul" /></label>
-        <div className="filter-divider" /><span className="filter-group-title">Faixa de preço (R$)</span>
-        <div className="two-fields"><label className="field-label">Mínimo<input type="number" value={filters.min} onChange={(event) => setFilter('min', event.target.value)} placeholder="0" /></label><label className="field-label">Máximo<input type="number" value={filters.max} onChange={(event) => setFilter('max', event.target.value)} placeholder="Sem limite" /></label></div>
-        <span className="filter-group-title">Área (m²)</span>
-        <div className="two-fields"><label className="field-label">Mínima<input type="number" value={filters.areaMin} onChange={(event) => setFilter('areaMin', event.target.value)} placeholder="0" /></label><label className="field-label">Máxima<input type="number" value={filters.areaMax} onChange={(event) => setFilter('areaMax', event.target.value)} placeholder="—" /></label></div>
-        <div className="filter-divider" /><span className="filter-group-title">Características mínimas</span>
-        <div className="two-fields">{([['beds', 'Dormitórios'], ['livingRooms', 'Salas'], ['suites', 'Suítes'], ['baths', 'Banheiros'], ['parking', 'Vagas']] as const).map(([key, title]) => <label key={key} className="field-label">{title}<select value={filters[key]} onChange={(event) => setFilter(key, event.target.value)}><option value="">Qualquer</option>{[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}+</option>)}</select></label>)}</div>
-        <label className="field-label">Diferencial<select value={filters.feature} onChange={(event) => setFilter('feature', event.target.value)}><option value="">Qualquer</option>{[...new Set(properties.flatMap(propertyFeatures))].sort().map((feature) => <option key={feature}>{feature}</option>)}</select></label>
+        <label className="field-label">Estado<select value={filters.state} onChange={(event) => setFilter('state', event.target.value)}><option value="">Todos os estados</option>{availableStates.map((state) => <option key={state}>{state}</option>)}</select></label>
+        <label className="field-label">Região / bairro<input list="property-neighborhoods" value={filters.neighborhood} onChange={(event) => setFilter('neighborhood', event.target.value)} placeholder="Ex.: Asa Sul" /><datalist id="property-neighborhoods">{availableNeighborhoods.map((neighborhood) => <option key={neighborhood} value={neighborhood} />)}</datalist></label>
       </aside>
       <section className="results-content">
-        <div className="result-toolbar"><div><button className="filter-toggle" onClick={() => setFiltersOpen(!filtersOpen)}><Filter size={16} />Filtros</button><span><strong>{loading ? '—' : results.length}</strong> imóveis encontrados</span></div><label className="sort-select">Ordenar por <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="recentes">Mais recentes</option><option value="menor-preco">Menor preço</option><option value="maior-preco">Maior preço</option><option value="maior-area">Maior metragem</option></select></label></div>
+        <div className="result-toolbar"><div><button type="button" className="filter-toggle" aria-expanded={filtersOpen} aria-controls="property-filter-panel" onClick={() => setFiltersOpen(!filtersOpen)}><Filter size={16} />{filtersOpen ? 'Ocultar filtros' : 'Filtrar imóveis'}{activeFilterCount > 0 && <span className="active-filter-count">{activeFilterCount}</span>}</button><span><strong>{loading ? '—' : results.length}</strong> imóveis encontrados</span></div><label className="sort-select">Ordenar por <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="recentes">Mais recentes</option><option value="menor-preco">Menor preço</option><option value="maior-preco">Maior preço</option><option value="maior-area">Maior metragem</option></select></label></div>
         {error && <div className="inline-error">{error}</div>}
         {loading ? <Loading message="Buscando imóveis" /> : results.length ? <PropertyCarousel properties={results} desktopGrid /> : <div className="empty-state"><Search size={28} /><h3>Nenhum imóvel encontrado</h3><p>Tente ajustar ou limpar os filtros para ampliar sua busca.</p><button className="button button-outline" onClick={clearFilters}>Limpar filtros</button></div>}
       </section>
