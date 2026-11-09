@@ -3,7 +3,7 @@ import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchPara
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Bath, BedDouble, Building2, Check,
   ChevronDown, ChevronLeft, ChevronRight, CircleUserRound, Clipboard, DoorOpen, Filter, Home, Instagram,
-  KeyRound, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Youtube,
+  KeyRound, LayoutDashboard, LogOut, Mail, MapPin, Menu, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Youtube,
   Square, Trash2, Upload, Users, X,
 } from 'lucide-react'
 import { deleteProperty, deleteTeamMember, getAdminProperties, getDfImoveisCustomerCode, getPropertyInteractions, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveDfImoveisCustomerCode, saveProperty, saveSiteSettings, saveTeamMember, sendPropertyInquiry, trackPropertyWhatsAppClick, updatePropertyStatus, updateTeamMember } from './lib/data'
@@ -1079,7 +1079,7 @@ function AdminPage() {
     return () => { active = false }
   }, [authorized, view])
   useEffect(() => {
-    if (view !== 'reports' || !authorized) return
+    if (view !== 'emails' || !authorized) return
     let active = true
     setEmailInteractionsLoading(true)
     setEmailInteractionsError('')
@@ -1098,7 +1098,7 @@ function AdminPage() {
   }, [authorized, emailFilters.from, emailFilters.to, emailRefreshKey, view])
 
   useEffect(() => {
-    if (view !== 'reports' || !authorized) return
+    if (view !== 'whatsapp' || !authorized) return
     let active = true
     setWhatsappInteractionsLoading(true)
     setWhatsappInteractionsError('')
@@ -1378,19 +1378,20 @@ function AdminPage() {
       <button className={view === 'overview' ? 'side-link active' : 'side-link'} onClick={() => changeView('overview')}><LayoutDashboard size={17} /> Visão geral</button>
       <button className={view === 'properties' ? 'side-link active' : 'side-link'} onClick={() => changeView('properties')}><Home size={17} /> Todos os imóveis<span className="side-count">{properties.length}</span></button>
       <button className={view === 'editor' ? 'side-link active' : 'side-link'} onClick={() => changeView('editor')}><Plus size={17} /> Cadastrar imóvel</button>
+      <button className={view === 'emails' ? 'side-link active' : 'side-link'} onClick={() => changeView('emails')}><Mail size={17} /> E-mails enviados</button>
+      <button className={view === 'whatsapp' ? 'side-link active' : 'side-link'} onClick={() => changeView('whatsapp')}><MessageCircle size={17} /> Cliques no WhatsApp</button>
       <button className={view === 'team' ? 'side-link active' : 'side-link'} onClick={() => changeView('team')}><Users size={17} /> Captadores e corretores</button>
       <button className={view === 'reports' ? 'side-link active' : 'side-link'} onClick={() => changeView('reports')}><Filter size={17} /> Relatórios</button>
       <button className={view === 'settings' ? 'side-link active' : 'side-link'} onClick={() => changeView('settings')}><SlidersHorizontal size={17} /> Configurações</button>
     </nav><div className="sidebar-bottom"><span className="admin-user"><span className="user-avatar">R</span><span><strong>{user.email?.split('@')[0] ?? 'Administrador'}</strong><small>Administrador</small></span></span><button className="side-link logout-link" onClick={() => void logout()}><LogOut size={17} /> Sair</button><Link to="/" className="view-site-link">← Voltar ao site</Link></div></aside>
     <main className="admin-main">
-      <header className="admin-topbar"><div className="admin-topcrumb">RDS Imóveis <span>/</span> <strong>{view === 'overview' ? 'Visão geral' : view === 'properties' ? 'Imóveis' : view === 'editor' ? (selectedProperty ? 'Editar imóvel' : 'Novo imóvel') : view === 'team' ? 'Equipe' : view === 'reports' ? 'Relatórios' : 'Configurações'}</strong></div><button type="button" className="view-public-link logout-topbar-button" onClick={() => void logout()}><LogOut size={15} /><span>Sair</span></button></header>
+      <header className="admin-topbar"><div className="admin-topcrumb">RDS Imóveis <span>/</span> <strong>{view === 'overview' ? 'Visão geral' : view === 'properties' ? 'Imóveis' : view === 'editor' ? (selectedProperty ? 'Editar imóvel' : 'Novo imóvel') : view === 'team' ? 'Equipe' : view === 'emails' ? 'E-mails enviados' : view === 'whatsapp' ? 'Cliques no WhatsApp' : view === 'reports' ? 'Relatórios' : 'Configurações'}</strong></div><button type="button" className="view-public-link logout-topbar-button" onClick={() => void logout()}><LogOut size={15} /><span>Sair</span></button></header>
       <div className="admin-content">
         {dataError && <div className="admin-alert error-alert">{dataError}<button onClick={() => setDataError('')} aria-label="Fechar"><X size={15} /></button></div>}
         {loadingData && <div className="admin-loading-inline"><span className="spinner" />Atualizando dados...</div>}
-        {view === 'reports' && <section className="interaction-report-section">
-          <div className="admin-page-heading"><div><span className="eyebrow gold">RELATÓRIOS DE CONTATO</span><h2>Interessados por imóvel</h2><p>Os relatórios de e-mail e WhatsApp têm filtros e exportações separados.</p></div></div>
+        {view === 'emails' && <section className="interaction-report-section">
+          <div className="admin-page-heading"><div><span className="eyebrow gold">INTERESSADOS POR IMÓVEL</span><h1>E-mails enviados</h1><p>Filtre e exporte os e-mails aceitos pelo serviço de envio.</p></div></div>
           <div className="admin-panel report-filter-panel interaction-filter-panel interaction-report-card">
-            <div className="panel-heading"><div><h2>E-mails enviados</h2><p>Filtre e exporte os e-mails aceitos pelo serviço de envio.</p></div></div>
             <div className="interaction-filter-fields">
               <div className="interaction-region-picker">
                 <span>Região (bairros, cidades e estados)</span>
@@ -1446,8 +1447,10 @@ function AdminPage() {
               <div><button type="button" className="button button-outline" aria-label="Página anterior de e-mails" disabled={currentReportEmailPage <= 1} onClick={() => setReportEmailPage((page) => Math.max(1, page - 1))}><ChevronLeft size={15} /> Anterior</button><span>Página {currentReportEmailPage} de {reportEmailPageCount}</span><button type="button" className="button button-outline" aria-label="Próxima página de e-mails" disabled={currentReportEmailPage >= reportEmailPageCount} onClick={() => setReportEmailPage((page) => Math.min(reportEmailPageCount, page + 1))}>Próxima <ChevronRight size={15} /></button></div>
             </div>
           </div>
+        </section>}
+        {view === 'whatsapp' && <section className="interaction-report-section">
+          <div className="admin-page-heading"><div><span className="eyebrow gold">INTERESSADOS POR IMÓVEL</span><h1>Cliques no WhatsApp</h1><p>Consulte e exporte somente os cliques registrados no botão de chamada via WhatsApp.</p></div></div>
           <div className="admin-panel report-filter-panel interaction-filter-panel interaction-report-card whatsapp-report-card">
-            <div className="panel-heading"><div><h2>Cliques no WhatsApp</h2><p>Consulte e exporte somente os cliques registrados no botão de chamada via WhatsApp.</p></div></div>
             <div className="interaction-filter-fields">
               <div className="interaction-region-picker">
                 <span>Região (bairros, cidades e estados)</span>

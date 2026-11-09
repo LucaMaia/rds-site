@@ -466,9 +466,9 @@ h1,h2,h3,p{margin-top:0}
 .report-filter-panel .admin-filters>select,.report-filter-panel .admin-filters>input{height:34px;border:1px solid #e8e6df;background:white;padding:0 9px;font-size:9px;color:#5d5e57;max-width:170px}
 .report-date{display:flex;align-items:center;gap:6px;font-size:8px;color:#777870}
 .report-date input{height:34px;max-width:130px;border:1px solid #e8e6df;padding:0 7px;font-size:9px;color:#5d5e57}
-.interaction-report-section{margin-top:24px}
+.interaction-report-section{margin-top:0}
 .interaction-report-section{display:flex;flex-direction:column;gap:26px}
-.portfolio-report-section{margin-top:48px}
+.portfolio-report-section{margin-top:0}
 .interaction-report-section>.admin-page-heading h2{font:500 27px var(--serif);margin:7px 0}
 .admin-panel.interaction-filter-panel{position:relative;z-index:4;overflow:visible;margin-bottom:28px}
 .admin-panel.interaction-report-card{margin:0}
