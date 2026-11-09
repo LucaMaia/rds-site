@@ -131,7 +131,7 @@ h1,h2,h3,p{margin-top:0}
 @keyframes spin{to{transform:rotate(360deg)}}
 .inline-error{background:#fff1ee;border:1px solid #f0c9c1;color:#9e3a2b;padding:12px 14px;font-size:12px;margin:12px 0}
 .empty-featured{background:#fff;border:1px solid #eceae4;padding:22px;font-size:11px;color:#777870}
-.empty-featured p{margin-bottom:5px}
+.empty-featured p{margin:0}
 
 /* Property search */
 .results-page{width:min(1220px,86%);margin:0 auto;padding:54px 0 90px}

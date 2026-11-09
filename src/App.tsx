@@ -371,7 +371,7 @@ function HomePage() {
         {error && <div className="inline-error">{error}</div>}
         {featured.length > 0 && <PropertyCarousel properties={featured} />}
         {!featured.length && loading && <Loading message="Carregando seleção de imóveis" />}
-        {!featured.length && !loading && <div className="empty-featured"><p>{error ? 'Não foi possível carregar os destaques.' : hasSearchFilters ? 'Nenhum imóvel em destaque para esta busca.' : 'Novos imóveis selecionados em breve.'}</p><Link to="/imoveis" className="text-link">Ver imóveis disponíveis <ArrowRight size={16} /></Link></div>}
+        {!featured.length && !loading && <div className="empty-featured"><p>{error ? 'Não foi possível carregar os destaques.' : hasSearchFilters ? 'Nenhum imóvel em destaque para esta busca.' : 'Novos imóveis selecionados em breve.'}</p></div>}
       </section>
       <section className="regions-section" id="regioes">
         <div className="section region-intro"><span className="eyebrow gold">ONDE VOCÊ QUER VIVER?</span><h2>Regiões que<br /><em>inspiram.</em></h2><p>Da vida tranquila perto do verde ao ritmo vibrante da cidade, há um endereço esperando por você.</p><Link to="/imoveis" className="text-link">Explorar regiões <ArrowRight size={16} /></Link></div>
