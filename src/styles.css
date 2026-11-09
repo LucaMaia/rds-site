@@ -33,7 +33,7 @@ h1,h2,h3,p{margin-top:0}
 .hero h1{font:500 clamp(42px,4.6vw,63px)/1.13 var(--serif);letter-spacing:-.02em;margin:26px 0 16px}
 .hero h1 em,.region-intro h2 em,.editorial h2 em,.login-card h1 em{font-weight:500;color:#d9c39d}
 .hero-content>p{font-size:14px;line-height:1.75;color:rgba(255,255,255,.86);max-width:410px;margin:0}
-.hero-search{position:absolute;z-index:2;bottom:-37px;left:50%;transform:translateX(-50%);width:min(1000px,84%)}
+.hero-search{position:absolute;z-index:2;bottom:-37px;left:0;right:0;margin-inline:auto;width:min(1000px,84%)}
 .social-nav-links{display:flex;align-items:center;gap:7px}
 .social-nav-links>a{width:34px;height:34px;display:grid;place-items:center;border:1px solid #d5d1c7;border-radius:50%;color:#55564f;transition:background .2s,color .2s,border-color .2s}
 .social-nav-links>a:hover{background:#262722;border-color:#262722;color:#fff}

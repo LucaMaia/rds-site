@@ -266,7 +266,23 @@ function SearchBox({ initialPurpose = 'VENDA' }: { initialPurpose?: string }) {
     if (type) params.set('tipo', type)
     navigate(`/imoveis?${params.toString()}`)
   }
-  return <form className="search-box" onSubmit={submit}>
+  // iOS às vezes rola demais ao abrir o teclado e esconde o campo focado; corrige depois que o teclado abre.
+  function keepFieldVisible(event: React.FocusEvent<HTMLFormElement>) {
+    const field = event.target
+    if (!(field instanceof HTMLInputElement || field instanceof HTMLSelectElement)) return
+    if (!window.matchMedia('(max-width: 760px)').matches) return
+    window.setTimeout(() => {
+      if (document.activeElement !== field) return
+      const viewport = window.visualViewport
+      const viewportTop = viewport?.offsetTop ?? 0
+      const viewportHeight = viewport?.height ?? window.innerHeight
+      const rect = field.getBoundingClientRect()
+      const visible = rect.top >= viewportTop + 8 && rect.bottom <= viewportTop + viewportHeight - 8
+      if (visible) return
+      window.scrollTo({ top: window.scrollY + rect.top - viewportTop - viewportHeight * 0.3, behavior: 'smooth' })
+    }, 350)
+  }
+  return <form className="search-box" onSubmit={submit} onFocus={keepFieldVisible}>
     <div className="search-purpose">
       <button type="button" className={purpose !== 'ALUGUEL' ? 'active' : ''} onClick={() => setPurpose('VENDA')}>Comprar</button>
       <button type="button" className={purpose === 'ALUGUEL' ? 'active' : ''} onClick={() => setPurpose('ALUGUEL')}>Alugar</button>
