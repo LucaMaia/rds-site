@@ -48,6 +48,8 @@ h1,h2,h3,p{margin-top:0}
 .search-input,.select-wrap{height:46px;display:flex;align-items:center;gap:10px;color:#888980;border:1px solid #e8e6e0;padding:0 13px}
 .search-input input,.select-wrap select{border:0;outline:0;background:transparent;color:var(--ink);width:100%;font-size:12px}
 .select-wrap select{appearance:none;cursor:pointer}
+.search-clear{flex:0 0 auto;width:30px;height:30px;margin-right:-6px;display:grid;place-items:center;border:0;border-radius:50%;background:#f2f0e9;color:#55564f;padding:0}
+.search-input input:not(:placeholder-shown)::-webkit-calendar-picker-indicator{display:none !important}
 .button{min-height:43px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:0 20px;border:1px solid transparent;font-size:11px;font-weight:600;letter-spacing:.02em;transition:background .2s,color .2s,border .2s,transform .2s}
 .button:hover{transform:translateY(-1px)}
 .button-dark{background:#262722;color:white}

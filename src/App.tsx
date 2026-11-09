@@ -283,6 +283,7 @@ function SearchBox({ initialPurpose = 'VENDA', onFiltersChange }: { initialPurpo
   const [purpose, setPurpose] = useState(initialPurpose)
   const [term, setTerm] = useState('')
   const [type, setType] = useState('')
+  const termInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => { onFiltersChange?.({ term, type }) }, [term, type, onFiltersChange])
   function submit(event: React.FormEvent) {
     event.preventDefault()
@@ -314,7 +315,7 @@ function SearchBox({ initialPurpose = 'VENDA', onFiltersChange }: { initialPurpo
       <button type="button" className={purpose === 'ALUGUEL' ? 'active' : ''} onClick={() => setPurpose('ALUGUEL')}>Alugar</button>
     </div>
     <div className="search-fields">
-      <label className="search-input"><MapPin size={18} /><input list="property-locations" value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Cidade, região ou bairro" aria-label="Cidade, região ou bairro" /><datalist id="property-locations">{[...regions, 'Brasília', 'Distrito Federal'].map((region) => <option key={region} value={region} />)}</datalist></label>
+      <label className="search-input"><MapPin size={18} /><input ref={termInputRef} list="property-locations" value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Cidade, região ou bairro" aria-label="Cidade, região ou bairro" />{term && <button type="button" className="search-clear" aria-label="Limpar localização" onClick={() => { setTerm(''); termInputRef.current?.focus() }}><X size={16} /></button>}<datalist id="property-locations">{[...regions, 'Brasília', 'Distrito Federal'].map((region) => <option key={region} value={region} />)}</datalist></label>
       <label className="select-wrap"><Building2 size={17} /><select value={type} onChange={(event) => setType(event.target.value)} aria-label="Tipo de imóvel"><option value="">Tipo de imóvel</option>{propertyTypes.map((option) => <option key={option}>{option}</option>)}</select><ChevronDown size={15} /></label>
       <button className="button button-dark search-submit" type="submit"><Search size={17} />Buscar imóveis</button>
     </div>
@@ -370,7 +371,7 @@ function HomePage() {
         {error && <div className="inline-error">{error}</div>}
         {featured.length > 0 && <PropertyCarousel properties={featured} />}
         {!featured.length && loading && <Loading message="Carregando seleção de imóveis" />}
-        {!featured.length && !loading && <div className="empty-featured"><p>{error ? 'Não foi possível carregar os destaques.' : hasSearchFilters ? 'Nenhum imóvel em destaque para esta busca. Clique em Buscar imóveis para ver todas as opções.' : 'Novos imóveis selecionados em breve.'}</p><Link to="/imoveis" className="text-link">Ver imóveis disponíveis <ArrowRight size={16} /></Link></div>}
+        {!featured.length && !loading && <div className="empty-featured"><p>{error ? 'Não foi possível carregar os destaques.' : hasSearchFilters ? 'Nenhum imóvel em destaque para esta busca.' : 'Novos imóveis selecionados em breve.'}</p><Link to="/imoveis" className="text-link">Ver imóveis disponíveis <ArrowRight size={16} /></Link></div>}
       </section>
       <section className="regions-section" id="regioes">
         <div className="section region-intro"><span className="eyebrow gold">ONDE VOCÊ QUER VIVER?</span><h2>Regiões que<br /><em>inspiram.</em></h2><p>Da vida tranquila perto do verde ao ritmo vibrante da cidade, há um endereço esperando por você.</p><Link to="/imoveis" className="text-link">Explorar regiões <ArrowRight size={16} /></Link></div>
