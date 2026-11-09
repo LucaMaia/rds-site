@@ -100,7 +100,7 @@ function Footer() {
 
 function Photo({ property, className = '' }: { property: Property; className?: string }) {
   const photo = property.property_images?.find((image) => image.is_cover)?.url ?? property.property_images?.[0]?.url ?? imageFallback
-  return <img className={className} src={photo} alt={property.title} loading="lazy" onError={(event) => { event.currentTarget.src = imageFallback }} />
+  return <img className={className} src={photo} alt={property.title} loading="lazy" decoding="async" onError={(event) => { event.currentTarget.src = imageFallback }} />
 }
 
 function propertyInquiryWhatsAppUrl(phone: string, property: Property, customer: { name: string; email: string; whatsapp: string }) {
@@ -203,11 +203,24 @@ function PropertyCarousel({ properties, desktopGrid = false }: { properties: Pro
     setPage(Math.min(pages - 1, Math.round((track.scrollLeft / maxScroll) * (pages - 1))))
   }
 
+  const scrollFrame = useRef(0)
+  function scheduleUpdatePage() {
+    if (scrollFrame.current) return
+    scrollFrame.current = requestAnimationFrame(() => {
+      scrollFrame.current = 0
+      updatePage()
+    })
+  }
+
   useEffect(() => {
     trackRef.current?.scrollTo({ left: 0 })
     updatePage()
-    window.addEventListener('resize', updatePage)
-    return () => window.removeEventListener('resize', updatePage)
+    window.addEventListener('resize', scheduleUpdatePage, { passive: true })
+    return () => {
+      window.removeEventListener('resize', scheduleUpdatePage)
+      cancelAnimationFrame(scrollFrame.current)
+      scrollFrame.current = 0
+    }
   }, [properties])
 
   function move(direction: -1 | 1) {
@@ -225,7 +238,7 @@ function PropertyCarousel({ properties, desktopGrid = false }: { properties: Pro
     <div
       className="property-carousel-track"
       ref={trackRef}
-      onScroll={updatePage}
+      onScroll={scheduleUpdatePage}
       onPointerDown={(event) => {
         if (event.pointerType === 'mouse' && event.button === 0) {
           dragStart.current = { x: event.clientX, scrollLeft: event.currentTarget.scrollLeft }
@@ -324,7 +337,7 @@ function HomePage() {
     <Header />
     <main>
       <section className="hero">
-        <img className="hero-image" src="https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=2200&q=90" alt="Residência contemporânea cercada por natureza" />
+        <img className="hero-image" src="https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=2200&q=90" srcSet="https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=80 900w, https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1400&q=85 1400w, https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=2200&q=90 2200w" sizes="100vw" fetchPriority="high" alt="Residência contemporânea cercada por natureza" />
         <div className="hero-shade" />
         <div className="hero-content">
           <span className="hero-kicker"><span /> IMÓVEIS SELECIONADOS · BRASÍLIA E GOIÁS</span>

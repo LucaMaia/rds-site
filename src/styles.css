@@ -169,7 +169,7 @@ h1,h2,h3,p{margin-top:0}
 .carousel-arrow{width:31px;height:31px;display:grid;place-items:center;border:1px solid #e6e4dd;border-radius:50%;background:white;color:#44453e;transition:background .2s,color .2s,border-color .2s}
 .carousel-arrow:hover:not(:disabled){background:#292a25;border-color:#292a25;color:white}
 .carousel-arrow:disabled{opacity:.38;cursor:not-allowed}
-.property-carousel-track{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;overscroll-behavior-x:contain;touch-action:pan-x;cursor:grab}
+.property-carousel-track{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;overscroll-behavior-x:contain;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch;cursor:grab}
 .property-carousel-track::-webkit-scrollbar{display:none}
 .property-carousel-track:active{cursor:grabbing}
 .property-carousel-track>.property-card{flex:0 0 calc((100% - 32px)/3);scroll-snap-align:start;scroll-snap-stop:always}
@@ -735,3 +735,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .brand{gap:0;letter-spacing:0}
 .brand-logo-frame{border-radius:50%;background:#fff}
 .login-brand{margin-bottom:32px}
+
+/* Telas de toque: sem efeitos de hover "presos" após o toque e sem animações de transform durante a rolagem */
+@media (hover:none){
+  .button:hover,.property-card:hover,.region-tile:hover,.social-floating-links>a:hover{transform:none}
+  .property-card:hover{box-shadow:none}
+  .property-card:hover .card-photo,.text-link:hover svg{transform:none}
+}
