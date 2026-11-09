@@ -266,11 +266,24 @@ function PropertyCarousel({ properties, desktopGrid = false }: { properties: Pro
   </div>
 }
 
-function SearchBox({ initialPurpose = 'VENDA' }: { initialPurpose?: string }) {
+type SearchFilters = { term: string; type: string }
+
+function normalizeSearch(value: string | null | undefined) {
+  return (value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR')
+}
+
+function matchesSearchFilters(property: Property, { term, type }: SearchFilters) {
+  const search = normalizeSearch(term)
+  const location = normalizeSearch(`${property.state} ${property.city} ${property.neighborhood} ${property.title} ${property.code}`)
+  return (!search || location.includes(search)) && (!type || property.type === type)
+}
+
+function SearchBox({ initialPurpose = 'VENDA', onFiltersChange }: { initialPurpose?: string; onFiltersChange?: (filters: SearchFilters) => void }) {
   const navigate = useNavigate()
   const [purpose, setPurpose] = useState(initialPurpose)
   const [term, setTerm] = useState('')
   const [type, setType] = useState('')
+  useEffect(() => { onFiltersChange?.({ term, type }) }, [term, type, onFiltersChange])
   function submit(event: React.FormEvent) {
     event.preventDefault()
     const params = new URLSearchParams()
@@ -315,7 +328,12 @@ function HomePage() {
   useEffect(() => {
     getPublicProperties().then(setProperties).catch((reason: Error) => setError(reason.message)).finally(() => setLoading(false))
   }, [])
-  const featured = properties.filter((property) => property.featured).slice(0, 7)
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({ term: '', type: '' })
+  const hasSearchFilters = Boolean(searchFilters.term.trim() || searchFilters.type)
+  const featured = useMemo(
+    () => properties.filter((property) => property.featured && matchesSearchFilters(property, searchFilters)).slice(0, 7),
+    [properties, searchFilters],
+  )
   const regionCards = useMemo(() => regions.map((region) => {
     const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR')
     const normalizedRegion = normalize(region)
@@ -344,7 +362,7 @@ function HomePage() {
           <h1>Encontre um lugar<br />para chamar de <em>seu.</em></h1>
           <p>Explore imóveis selecionados nas melhores regiões de Brasília e de outras localidades.</p>
         </div>
-        <div className="hero-search"><SearchBox /></div>
+        <div className="hero-search"><SearchBox onFiltersChange={setSearchFilters} /></div>
         <span className="hero-index">01 — 04</span>
       </section>
       <section className="section featured-section">
@@ -352,7 +370,7 @@ function HomePage() {
         {error && <div className="inline-error">{error}</div>}
         {featured.length > 0 && <PropertyCarousel properties={featured} />}
         {!featured.length && loading && <Loading message="Carregando seleção de imóveis" />}
-        {!featured.length && !loading && <div className="empty-featured"><p>{error ? 'Não foi possível carregar os destaques.' : 'Novos imóveis selecionados em breve.'}</p><Link to="/imoveis" className="text-link">Ver imóveis disponíveis <ArrowRight size={16} /></Link></div>}
+        {!featured.length && !loading && <div className="empty-featured"><p>{error ? 'Não foi possível carregar os destaques.' : hasSearchFilters ? 'Nenhum imóvel em destaque para esta busca. Clique em Buscar imóveis para ver todas as opções.' : 'Novos imóveis selecionados em breve.'}</p><Link to="/imoveis" className="text-link">Ver imóveis disponíveis <ArrowRight size={16} /></Link></div>}
       </section>
       <section className="regions-section" id="regioes">
         <div className="section region-intro"><span className="eyebrow gold">ONDE VOCÊ QUER VIVER?</span><h2>Regiões que<br /><em>inspiram.</em></h2><p>Da vida tranquila perto do verde ao ritmo vibrante da cidade, há um endereço esperando por você.</p><Link to="/imoveis" className="text-link">Explorar regiões <ArrowRight size={16} /></Link></div>
