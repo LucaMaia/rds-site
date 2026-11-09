@@ -615,6 +615,7 @@ h1,h2,h3,p{margin-top:0}
   .result-toolbar>div{gap:8px;min-width:0}
   .result-toolbar>div>span{font-size:9px;white-space:nowrap}
   .sort-select{gap:3px;font-size:8px;white-space:nowrap}
+  .sort-select-label{display:none}
   .sort-select select{font-size:9px}
   .property-carousel-track>.property-card{flex-basis:100%}
   .property-carousel-track .card-photo-wrap{height:230px}
