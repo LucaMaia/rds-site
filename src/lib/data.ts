@@ -271,7 +271,7 @@ export async function saveTeamMember(kind: 'captor' | 'broker', member: Partial<
   }
 }
 
-export async function saveProperty(input: PropertyInput, id: string | null, photoFiles: File[], videoUrls: string[], links: PropertyLink[], keptImages: PropertyImage[] = [], duplicateImageUrls: string[] = [], activePortals: IntegrationPortal[] = [], portalLevels: Partial<Record<IntegrationPortal, PortalHighlightLevel>> = {}): Promise<void> {
+export async function saveProperty(input: PropertyInput, id: string | null, photoFiles: File[], videoUrls: string[], links: PropertyLink[], keptImages: PropertyImage[] = [], duplicateImageUrls: string[] = [], activePortals: IntegrationPortal[] = []): Promise<void> {
   const client = requireSupabase()
   const { code, ...fields } = input
   const payload = code.trim() ? { ...fields, code: code.trim() } : fields
@@ -362,20 +362,19 @@ export async function saveProperty(input: PropertyInput, id: string | null, phot
     if (result.error) throw result.error
   }
 
-  const existingIntegrations = await client.from('imovel_integracoes').select('id, portal, ativo, nivel_destaque').eq('imovel_id', propertyId)
+  const existingIntegrations = await client.from('imovel_integracoes').select('id, portal, ativo').eq('imovel_id', propertyId)
   if (existingIntegrations.error) throw existingIntegrations.error
   const selectedPortals = new Set(activePortals)
   const existingPortals = new Set((existingIntegrations.data ?? []).map((integration) => integration.portal))
-  const levelFor = (portal: IntegrationPortal, current: PortalHighlightLevel) => selectedPortals.has(portal) ? portalLevels[portal] ?? current : current
   const updates = (existingIntegrations.data ?? [])
-    .filter((integration) => integration.ativo !== selectedPortals.has(integration.portal) || integration.nivel_destaque !== levelFor(integration.portal, integration.nivel_destaque))
-    .map((integration) => client.from('imovel_integracoes').update({ ativo: selectedPortals.has(integration.portal), nivel_destaque: levelFor(integration.portal, integration.nivel_destaque) }).eq('id', integration.id))
+    .filter((integration) => integration.ativo !== selectedPortals.has(integration.portal))
+    .map((integration) => client.from('imovel_integracoes').update({ ativo: selectedPortals.has(integration.portal) }).eq('id', integration.id))
   const updateResults = await Promise.all(updates)
   const failedUpdate = updateResults.find((result) => result.error)
   if (failedUpdate?.error) throw failedUpdate.error
   const newIntegrations = activePortals
     .filter((portal) => !existingPortals.has(portal))
-    .map((portal) => ({ imovel_id: propertyId, portal, ativo: true, nivel_destaque: portalLevels[portal] ?? 'basico' }))
+    .map((portal) => ({ imovel_id: propertyId, portal, ativo: true, nivel_destaque: 'basico' as const }))
   if (newIntegrations.length) {
     const result = await client.from('imovel_integracoes').insert(newIntegrations)
     if (result.error) throw result.error
@@ -401,6 +400,12 @@ export async function deleteProperty(id: string): Promise<void> {
     const { error: storageError } = await client.storage.from('property-images').remove(unusedPaths)
     if (storageError) throw storageError
   }
+}
+
+export async function updatePortalHighlightLevel(integrationId: string, level: PortalHighlightLevel): Promise<void> {
+  const client = requireSupabase()
+  const { error } = await client.from('imovel_integracoes').update({ nivel_destaque: level }).eq('id', integrationId)
+  if (error) throw error
 }
 
 export async function updatePropertyStatus(id: string, status: Property['status']): Promise<void> {
