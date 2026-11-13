@@ -748,3 +748,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .property-card:hover{box-shadow:none}
   .property-card:hover .card-photo,.text-link:hover svg{transform:none}
 }
+.portal-search-form>select{min-width:220px}
+.portal-search-form>.button{min-height:36px;border-radius:999px;padding:0 18px}
+.portal-search-hint{border-top:1px solid #efede8}
+@media(max-width:760px){.portal-search-form>select{min-width:0}}

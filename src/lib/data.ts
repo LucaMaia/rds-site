@@ -1,6 +1,6 @@
 import { demoCaptors, demoProperties } from './demo'
 import { isSupabaseConfigured, supabase } from './supabase'
-import type { Captor, IntegrationPortal, PortalHighlightLevel, Property, PropertyImage, PropertyInput, PropertyInquiryInput, PropertyInteraction, PropertyInteractionType, PropertyLink, PropertyVideo, SiteSettings } from '../types'
+import type { Captor, IntegrationPortal, PortalHighlightLevel, Property, PropertyImage, PropertyInput, PropertyInquiryInput, PropertyIntegration, PropertyInteraction, PropertyInteractionType, PropertyLink, PropertyVideo, SiteSettings } from '../types'
 
 function requireSupabase() {
   if (!supabase) throw new Error('Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para acessar o banco de dados.')
@@ -400,6 +400,34 @@ export async function deleteProperty(id: string): Promise<void> {
     const { error: storageError } = await client.storage.from('property-images').remove(unusedPaths)
     if (storageError) throw storageError
   }
+}
+
+export interface PortalListing {
+  integration: PropertyIntegration
+  property: Property
+}
+
+export async function getPortalListings(portal: IntegrationPortal): Promise<PortalListing[]> {
+  const client = requireSupabase()
+  const integrations = await client.from('imovel_integracoes').select('*').eq('portal', portal).eq('ativo', true)
+  if (integrations.error) throw integrations.error
+  const uniqueIntegrations = [...new Map((integrations.data ?? []).map((integration) => [integration.imovel_id, integration])).values()]
+  if (!uniqueIntegrations.length) return []
+  const ids = uniqueIntegrations.map((integration) => integration.imovel_id)
+  const [properties, images] = await Promise.all([
+    client.from('properties').select('*').in('id', ids),
+    client.from('property_images').select('*').in('property_id', ids).order('display_order'),
+  ])
+  if (properties.error) throw properties.error
+  if (images.error) throw images.error
+  const propertyMap = new Map((properties.data ?? []).map((property) => [property.id, {
+    ...property,
+    property_images: images.data?.filter((image) => image.property_id === property.id) ?? [],
+  } as Property]))
+  return uniqueIntegrations.flatMap((integration) => {
+    const property = propertyMap.get(integration.imovel_id)
+    return property ? [{ integration, property }] : []
+  })
 }
 
 export async function updatePortalHighlightLevel(integrationId: string, level: PortalHighlightLevel): Promise<void> {

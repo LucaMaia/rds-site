@@ -6,7 +6,8 @@ import {
   KeyRound, LayoutDashboard, LogOut, Mail, MapPin, Menu, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Youtube,
   Square, Trash2, Upload, Users, X,
 } from 'lucide-react'
-import { deleteProperty, deleteTeamMember, getAdminProperties, getDfImoveisCustomerCode, getPropertyInteractions, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveDfImoveisCustomerCode, saveProperty, saveSiteSettings, saveTeamMember, sendPropertyInquiry, trackPropertyWhatsAppClick, updatePortalHighlightLevel, updatePropertyStatus, updateTeamMember } from './lib/data'
+import { deleteProperty, deleteTeamMember, getAdminProperties, getDfImoveisCustomerCode, getPortalListings, getPropertyInteractions, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveDfImoveisCustomerCode, saveProperty, saveSiteSettings, saveTeamMember, sendPropertyInquiry, trackPropertyWhatsAppClick, updatePortalHighlightLevel, updatePropertyStatus, updateTeamMember } from './lib/data'
+import type { PortalListing } from './lib/data'
 import { dfImoveisMissingFields, dfImoveisSubtypes, dfImoveisTypes } from './lib/dfimoveis'
 import { currency, numberValue, whatsappContactUrl, whatsappUrl, youtubeEmbed } from './lib/format'
 import { supabase } from './lib/supabase'
@@ -1572,7 +1573,7 @@ function AdminPage() {
             </section>
           </div>
         </section>}
-        {view === 'portals' && <PortalTransmissions properties={properties} onChanged={refreshData} />}
+        {view === 'portals' && <PortalTransmissions />}
         {view === 'reports' && <section className="portfolio-report-section"><div className="admin-page-heading"><div><span className="eyebrow gold">ANÁLISE DA CARTEIRA</span><h1>Relatórios</h1><p>Explore seus imóveis por período, status, tipo, finalidade e captador.</p></div></div><div className="admin-panel report-filter-panel"><div className="admin-filters"><select value={reportFilters.captor} onChange={(event) => setReportFilters((current) => ({ ...current, captor: event.target.value }))}><option value="">Todos os captadores</option>{captors.map((captor) => <option key={captor.id} value={captor.id}>{captor.name}</option>)}</select><select value={reportFilters.status} onChange={(event) => setReportFilters((current) => ({ ...current, status: event.target.value }))}><option value="">Todos os status</option>{statuses.map((status) => <option key={status} value={status}>{statusNames[status]}</option>)}</select><select value={reportFilters.type} onChange={(event) => setReportFilters((current) => ({ ...current, type: event.target.value }))}><option value="">Todos os tipos</option>{propertyTypes.map((type) => <option key={type}>{type}</option>)}</select><select value={reportFilters.purpose} onChange={(event) => setReportFilters((current) => ({ ...current, purpose: event.target.value }))}><option value="">Todas as finalidades</option><option value="VENDA">Venda</option><option value="ALUGUEL">Aluguel</option><option value="AMBOS">Ambos</option></select><input aria-label="Região" placeholder="Região" value={reportFilters.region} onChange={(event) => setReportFilters((current) => ({ ...current, region: event.target.value }))} /><label className="report-date">De<input type="date" value={reportFilters.from} onChange={(event) => setReportFilters((current) => ({ ...current, from: event.target.value }))} /></label><label className="report-date">Até<input type="date" value={reportFilters.to} onChange={(event) => setReportFilters((current) => ({ ...current, to: event.target.value }))} /></label><button className="clear-button" onClick={() => setReportFilters({ status: '', type: '', purpose: '', captor: '', region: '', from: '', to: '' })}>Limpar</button></div></div><div className="metric-grid report-metrics"><Metric label="Imóveis no recorte" value={reportProperties.length} icon={<Building2 />} /><Metric label="Publicados" value={reportProperties.filter((item) => item.status === 'PUBLICADO').length} icon={<Check />} tone="green" /><Metric label="Valor médio de venda" value={currency(Math.round(reportProperties.reduce((sum, item) => sum + (item.sale_price ?? 0), 0) / Math.max(1, reportProperties.filter((item) => item.sale_price != null).length)))} icon={<Square />} /><Metric label="Área média (m²)" value={Math.round(reportProperties.reduce((sum, item) => sum + (item.total_area ?? 0), 0) / Math.max(1, reportProperties.filter((item) => item.total_area != null).length))} icon={<Home />} /></div><div className="dashboard-charts"><section className="admin-panel"><div className="panel-heading"><div><h2>Imóveis por captador</h2><p>Distribuição no período e filtros selecionados</p></div></div><div className="status-chart">{captorCounts.map(([name, count]) => <div className="status-bar-row" key={name}><span>{name}</span><div className="bar-track"><div className="bar-fill" style={{ width: `${count / reportMax * 100}%` }} /></div><strong>{count}</strong></div>)}{!captorCounts.length && <p className="muted-empty">Nenhum imóvel corresponde aos filtros.</p>}</div></section><section className="admin-panel"><div className="panel-heading"><div><h2>Resultados filtrados</h2><p>{reportProperties.length} imóveis encontrados</p></div></div><PropertyTable properties={paginatedReportProperties} onEdit={(item) => changeView('editor', item.id)} onDelete={(item) => void removeProperty(item)} onStatus={(item, status) => void changeStatus(item, status)} onDuplicate={(item) => void duplicateProperty(item)} /><div className="report-pagination"><span>{reportProperties.length ? `Exibindo ${(currentReportPropertyPage - 1) * 5 + 1}–${Math.min(currentReportPropertyPage * 5, reportProperties.length)} de ${reportProperties.length} imóveis` : 'Nenhum imóvel para exibir'}</span><div><button type="button" className="button button-outline" aria-label="Página anterior" disabled={currentReportPropertyPage <= 1} onClick={() => setReportPropertyPage((page) => Math.max(1, page - 1))}><ChevronLeft size={15} /> Anterior</button><span>Página {currentReportPropertyPage} de {reportPropertyPageCount}</span><button type="button" className="button button-outline" aria-label="Próxima página" disabled={currentReportPropertyPage >= reportPropertyPageCount} onClick={() => setReportPropertyPage((page) => Math.min(reportPropertyPageCount, page + 1))}>Próxima <ChevronRight size={15} /></button></div></div></section></div></section>}
         {view === 'settings' && <section>
           <div className="admin-page-heading"><div><span className="eyebrow gold">PRESENÇA DA IMOBILIÁRIA</span><h1>Configurações</h1><p>Essas informações aparecem nos contatos da área pública.</p></div></div>
@@ -1618,36 +1619,52 @@ function Metric({ label, value, icon, tone = '' }: { label: string; value: numbe
 
 const portalNames: Record<IntegrationPortal, string> = { olx: 'OLX', wimoveis: 'Wimóveis', dfimoveis: 'DF Imóveis' }
 
-function PortalTransmissions({ properties, onChanged }: { properties: Property[]; onChanged: () => Promise<void> }) {
-  const [filters, setFilters] = useState({ query: '', portal: '', level: '' })
+function PortalTransmissions() {
+  const [selectedPortal, setSelectedPortal] = useState<IntegrationPortal | ''>('')
+  const [searchedPortal, setSearchedPortal] = useState<IntegrationPortal | ''>('')
+  const [listings, setListings] = useState<PortalListing[] | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [filters, setFilters] = useState({ query: '', level: '' })
   const [page, setPage] = useState(1)
   const [savingId, setSavingId] = useState('')
-  const [levelOverrides, setLevelOverrides] = useState<Record<string, PortalHighlightLevel>>({})
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const rows = useMemo(() => properties.flatMap((property) =>
-    (property.integrations ?? []).filter((integration) => integration.ativo).map((integration) => ({ property, integration })),
-  ), [properties])
+  const searchRequest = useRef(0)
   const search = normalizeSearch(filters.query)
-  const filteredRows = rows.filter(({ property, integration }) => {
-    const level = levelOverrides[integration.id] ?? integration.nivel_destaque ?? 'basico'
-    return (!search || normalizeSearch(`${property.code} ${property.title} ${property.neighborhood} ${property.city}`).includes(search)) &&
-      (!filters.portal || integration.portal === filters.portal) &&
-      (!filters.level || level === filters.level)
-  }).sort((left, right) => left.property.code.localeCompare(right.property.code, 'pt-BR') || left.integration.portal.localeCompare(right.integration.portal))
-  useEffect(() => { setPage(1) }, [filters])
+  const filteredRows = (listings ?? []).filter(({ property, integration }) =>
+    (!search || normalizeSearch(`${property.code} ${property.title} ${property.neighborhood} ${property.city}`).includes(search)) &&
+    (!filters.level || (integration.nivel_destaque ?? 'basico') === filters.level),
+  ).sort((left, right) => left.property.code.localeCompare(right.property.code, 'pt-BR'))
+  useEffect(() => { setPage(1) }, [filters, listings])
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / 10))
   const currentPage = Math.min(page, pageCount)
   const paginatedRows = filteredRows.slice((currentPage - 1) * 10, currentPage * 10)
-  const levelCounts = portalHighlightLevels.map(([level, label]) => [label, rows.filter(({ integration }) => (levelOverrides[integration.id] ?? integration.nivel_destaque ?? 'basico') === level).length] as const)
+  const levelCounts = portalHighlightLevels.map(([level, label]) => [label, (listings ?? []).filter(({ integration }) => (integration.nivel_destaque ?? 'basico') === level).length] as const)
+
+  async function runSearch(event: React.FormEvent) {
+    event.preventDefault()
+    if (!selectedPortal) { setError('Selecione um portal para pesquisar.'); return }
+    const request = ++searchRequest.current
+    setSearching(true); setError(''); setSuccess('')
+    try {
+      const result = await getPortalListings(selectedPortal)
+      if (request !== searchRequest.current) return
+      setListings(result)
+      setSearchedPortal(selectedPortal)
+      setFilters({ query: '', level: '' })
+    } catch (reason) {
+      if (request === searchRequest.current) setError(reason instanceof Error ? reason.message : 'Não foi possível consultar os imóveis do portal.')
+    } finally {
+      if (request === searchRequest.current) setSearching(false)
+    }
+  }
 
   async function changeLevel(integrationId: string, level: PortalHighlightLevel, label: string) {
     setSavingId(integrationId); setError(''); setSuccess('')
     try {
       await updatePortalHighlightLevel(integrationId, level)
-      setLevelOverrides((current) => ({ ...current, [integrationId]: level }))
+      setListings((current) => current?.map((row) => row.integration.id === integrationId ? { ...row, integration: { ...row.integration, nivel_destaque: level } } : row) ?? current)
       setSuccess(`${label} atualizado.`)
-      await onChanged()
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Não foi possível atualizar o nível do anúncio.')
     } finally {
@@ -1656,22 +1673,28 @@ function PortalTransmissions({ properties, onChanged }: { properties: Property[]
   }
 
   return <section className="interaction-report-section">
-    <div className="admin-page-heading"><div><span className="eyebrow gold">PORTAIS IMOBILIÁRIOS</span><h1>Portais</h1><p>Consulte os imóveis enviados para cada portal e defina o nível do anúncio. Todo imóvel entra como Básico.</p></div></div>
+    <div className="admin-page-heading"><div><span className="eyebrow gold">PORTAIS IMOBILIÁRIOS</span><h1>Portais</h1><p>Selecione um portal para consultar os imóveis vinculados a ele e definir o nível do anúncio. Todo imóvel entra como Básico.</p></div></div>
     {error && <div className="admin-alert error-alert">{error}<button onClick={() => setError('')} aria-label="Fechar"><X size={15} /></button></div>}
     {success && <div className="admin-alert success-alert">{success}<button onClick={() => setSuccess('')} aria-label="Fechar"><X size={15} /></button></div>}
     <div className="admin-panel listing-panel">
-      <div className="admin-filters"><label className="admin-search"><Search size={16} /><input value={filters.query} onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))} placeholder="Buscar por código, título ou local" /></label><select value={filters.portal} onChange={(event) => setFilters((current) => ({ ...current, portal: event.target.value }))} aria-label="Filtrar por portal"><option value="">Todos os portais</option>{(Object.keys(portalNames) as IntegrationPortal[]).map((portal) => <option key={portal} value={portal}>{portalNames[portal]}</option>)}</select><select value={filters.level} onChange={(event) => setFilters((current) => ({ ...current, level: event.target.value }))} aria-label="Filtrar por nível"><option value="">Todos os níveis</option>{portalHighlightLevels.map(([level, label]) => <option key={level} value={level}>{label}</option>)}</select></div>
-      <div className="listing-count">{filteredRows.length} envios encontrados · {levelCounts.map(([label, count]) => `${label}: ${count}`).join(' · ')}</div>
-      <div className="table-scroll"><table className="property-table portal-table"><thead><tr><th>Imóvel</th><th>Portal</th><th>Status do imóvel</th><th>Atualizado em</th><th>Nível do anúncio</th></tr></thead><tbody>
-        {paginatedRows.map(({ property, integration }) => {
-          const level = levelOverrides[integration.id] ?? integration.nivel_destaque ?? 'basico'
-          const missing = integration.portal === 'dfimoveis' ? dfImoveisMissingFields(property) : []
-          const feedNote = integration.portal !== 'dfimoveis' ? null : property.status !== 'PUBLICADO' ? 'Fora do feed: imóvel não publicado' : missing.length ? `Fora do feed: falta ${missing.join(', ')}` : 'No feed XML'
-          return <tr key={integration.id}><td><div className="table-property"><Photo property={property} /><div><strong>{property.title}</strong><span>{property.code} · {property.type}</span></div></div></td><td>{portalNames[integration.portal]}{feedNote && <small>{feedNote}</small>}</td><td>{statusNames[property.status]}</td><td>{new Date(integration.atualizado_em).toLocaleDateString('pt-BR')}</td><td><select className="portal-level-select" aria-label={`Nível do anúncio de ${property.code} no ${portalNames[integration.portal]}`} value={level} disabled={savingId === integration.id} onChange={(event) => void changeLevel(integration.id, event.target.value as PortalHighlightLevel, `${property.code} no ${portalNames[integration.portal]}`)}>{portalHighlightLevels.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></td></tr>
-        })}
-        {!filteredRows.length && <tr><td colSpan={5}><div className="table-empty">{rows.length ? 'Nenhum envio encontrado com estes filtros.' : 'Nenhum imóvel foi enviado para os portais. Marque os portais em Portais imobiliários, no cadastro do imóvel.'}</div></td></tr>}
-      </tbody></table></div>
-      <div className="report-pagination"><span>{filteredRows.length ? `Exibindo ${(currentPage - 1) * 10 + 1}–${Math.min(currentPage * 10, filteredRows.length)} de ${filteredRows.length} envios` : 'Nenhum envio para exibir'}</span><div><button type="button" className="button button-outline" aria-label="Página anterior de envios" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><ChevronLeft size={15} /> Anterior</button><span>Página {currentPage} de {pageCount}</span><button type="button" className="button button-outline" aria-label="Próxima página de envios" disabled={currentPage >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>Próxima <ChevronRight size={15} /></button></div></div>
+      <form className="admin-filters portal-search-form" onSubmit={(event) => void runSearch(event)}>
+        <select required value={selectedPortal} onChange={(event) => setSelectedPortal(event.target.value as IntegrationPortal | '')} aria-label="Portal imobiliário"><option value="">Selecione o portal *</option>{(Object.keys(portalNames) as IntegrationPortal[]).map((portal) => <option key={portal} value={portal}>{portalNames[portal]}</option>)}</select>
+        <button type="submit" className="button button-dark" disabled={searching}><Search size={15} />{searching ? 'Pesquisando...' : 'Pesquisar'}</button>
+      </form>
+      {listings === null ? <div className="table-empty portal-search-hint">{searching ? 'Consultando imóveis...' : 'Selecione um portal e clique em Pesquisar para ver os imóveis vinculados.'}</div> : <>
+        {listings.length > 0 && <div className="admin-filters"><label className="admin-search"><Search size={16} /><input value={filters.query} onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))} placeholder="Buscar por código, título ou local" /></label><select value={filters.level} onChange={(event) => setFilters((current) => ({ ...current, level: event.target.value }))} aria-label="Filtrar por nível"><option value="">Todos os níveis</option>{portalHighlightLevels.map(([level, label]) => <option key={level} value={level}>{label}</option>)}</select></div>}
+        <div className="listing-count">{searchedPortal && portalNames[searchedPortal]}: {filteredRows.length} imóveis encontrados{listings.length > 0 && ` · ${levelCounts.map(([label, count]) => `${label}: ${count}`).join(' · ')}`}</div>
+        <div className="table-scroll"><table className="property-table portal-table"><thead><tr><th>Imóvel</th><th>Situação no portal</th><th>Status do imóvel</th><th>Atualizado em</th><th>Nível do anúncio</th></tr></thead><tbody>
+          {paginatedRows.map(({ property, integration }) => {
+            const level = integration.nivel_destaque ?? 'basico'
+            const missing = integration.portal === 'dfimoveis' ? dfImoveisMissingFields(property) : []
+            const feedNote = integration.portal !== 'dfimoveis' ? 'Selecionado para o portal' : property.status !== 'PUBLICADO' ? 'Fora do feed: imóvel não publicado' : missing.length ? `Fora do feed: falta ${missing.join(', ')}` : 'No feed XML'
+            return <tr key={integration.id}><td><div className="table-property"><Photo property={property} /><div><strong>{property.title}</strong><span>{property.code} · {property.type}</span></div></div></td><td>{feedNote}</td><td>{statusNames[property.status]}</td><td>{new Date(integration.atualizado_em).toLocaleDateString('pt-BR')}</td><td><select className="portal-level-select" aria-label={`Nível do anúncio de ${property.code} no ${portalNames[integration.portal]}`} value={level} disabled={savingId === integration.id} onChange={(event) => void changeLevel(integration.id, event.target.value as PortalHighlightLevel, `${property.code} no ${portalNames[integration.portal]}`)}>{portalHighlightLevels.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></td></tr>
+          })}
+          {!filteredRows.length && <tr><td colSpan={5}><div className="table-empty">{listings.length ? 'Nenhum imóvel encontrado com estes filtros.' : `Nenhum registro encontrado para ${searchedPortal ? portalNames[searchedPortal] : 'este portal'}.`}</div></td></tr>}
+        </tbody></table></div>
+        {filteredRows.length > 0 && <div className="report-pagination"><span>{`Exibindo ${(currentPage - 1) * 10 + 1}–${Math.min(currentPage * 10, filteredRows.length)} de ${filteredRows.length} imóveis`}</span><div><button type="button" className="button button-outline" aria-label="Página anterior" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><ChevronLeft size={15} /> Anterior</button><span>Página {currentPage} de {pageCount}</span><button type="button" className="button button-outline" aria-label="Próxima página" disabled={currentPage >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>Próxima <ChevronRight size={15} /></button></div></div>}
+      </>}
     </div>
   </section>
 }
