@@ -514,6 +514,7 @@ h1,h2,h3,p{margin-top:0}
 .report-metrics{margin-top:0}
 .report-metrics .metric-card>strong{font-family:"DM Sans",Arial,sans-serif;font-size:21px}
 .settings-form .panel-heading{padding:18px 20px}
+.settings-form+.settings-form{margin-top:24px}
 .settings-fields{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:15px}
 .settings-submit{border-top:1px solid #efede8;padding:14px 20px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .integration-pending-list{padding:0 20px 16px;color:#75694f;font-size:10px;line-height:1.6}
