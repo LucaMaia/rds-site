@@ -407,6 +407,8 @@ h1,h2,h3,p{margin-top:0}
 .integration-option>span{display:flex;flex-direction:column;gap:4px}
 .integration-option strong{font-size:10px;color:#45463f;font-weight:600}
 .integration-option small{font-size:8px;color:#898a83;line-height:1.5}
+.integration-level{margin-top:6px;height:30px;max-width:180px;border:1px solid #e4e2db;border-radius:var(--radius-small);background:white;padding:0 8px;font-size:9px;color:#393a34;outline:0}
+.integration-level:focus{border-color:#b49a6c}
 .admin-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .admin-form-grid>.admin-field{min-width:0}
 .admin-form-grid>.check-field,.feature-picker,.check-group{grid-column:1/-1}

@@ -76,6 +76,8 @@ O feed do DF Imóveis é gerado dinamicamente pela Edge Function `dfimoveis-feed
 4. No cadastro/edição do imóvel, marque **DF Imóveis**, selecione o tipo e subtipo conforme a documentação e preencha as áreas exigidas. Depois, salve e altere o status para **Publicado**.
 5. Copie a URL exibida nas configurações e solicite ao DF Imóveis que configure a importação desse feed.
 
+Nível do anúncio: em **Portais imobiliários**, cada portal marcado tem a opção **Básico**, **Destaque** ou **Super Destaque**. Para habilitar em projetos existentes, aplique `supabase/migrations/20261113120000_portal_highlight_level.sql` e publique novamente a função `dfimoveis-feed`. No XML do DF Imóveis, Destaque gera `<Destaque>1</Destaque>` e Super Destaque gera `<UltraDestaque>1</UltraDestaque>`; Básico mantém os dois como `0`. Imóveis já integrados começam como Básico.
+
 O feed contém somente imóveis salvos, ativos para DF Imóveis e com status `PUBLICADO`. Campos obrigatórios ausentes impedem o imóvel específico de aparecer no XML e são mostrados nas configurações do painel. Novas alterações de cadastro, status, integração e fotos são refletidas na próxima solicitação do feed. As seleções anteriores de OLX e Wimóveis continuam preservadas.
 
 Essa integração disponibiliza um feed para o DF Imóveis importar; ela não envia anúncios por uma API de publicação direta. A documentação fornecida descreve o layout XML, não o mecanismo de recebimento do portal. A URL é pública para que o portal possa consultá-la; a chave `service_role` é usada apenas pela Edge Function e nunca deve ser colocada no frontend ou em variáveis `VITE_*`.

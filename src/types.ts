@@ -177,12 +177,15 @@ export interface PropertyIntegration {
   imovel_id: string
   portal: IntegrationPortal
   ativo: boolean
+  nivel_destaque: PortalHighlightLevel
   codigo_externo: string | null
   criado_em: string
   atualizado_em: string
 }
 
 export type IntegrationPortal = 'olx' | 'wimoveis' | 'dfimoveis'
+
+export type PortalHighlightLevel = 'basico' | 'destaque' | 'super_destaque'
 
 export interface PropertyInput {
   code: string

@@ -10,10 +10,11 @@ import { deleteProperty, deleteTeamMember, getAdminProperties, getDfImoveisCusto
 import { dfImoveisMissingFields, dfImoveisSubtypes, dfImoveisTypes } from './lib/dfimoveis'
 import { currency, numberValue, whatsappContactUrl, whatsappUrl, youtubeEmbed } from './lib/format'
 import { supabase } from './lib/supabase'
-import type { Captor, IntegrationPortal, Property, PropertyImage, PropertyInput, PropertyInteraction, PropertyLink, PropertyStatus } from './types'
+import type { Captor, IntegrationPortal, PortalHighlightLevel, Property, PropertyImage, PropertyInput, PropertyInteraction, PropertyLink, PropertyStatus } from './types'
 
 const regions = ['Guará', 'Águas Claras', 'Asa Sul', 'Asa Norte', 'Sudoeste', 'Noroeste', 'Lago Sul', 'Lago Norte', 'Taguatinga', 'Ceilândia', 'Samambaia', 'Vicente Pires', 'Park Sul', 'Jardim Botânico', 'Park Way', 'Sobradinho', 'Valparaíso', 'Cidade Ocidental']
-const propertyTypes = ['Apartamento', 'Casa', 'Cobertura', 'Terreno', 'Comercial', 'Chácara']
+const propertyTypes = ['Apartamento', 'Casa', 'Casa em condomínio', 'Cobertura', 'Kitnet', 'Terreno', 'Comercial', 'Chácara']
+const portalHighlightLevels: Array<[PortalHighlightLevel, string]> = [['basico', 'Básico'], ['destaque', 'Destaque'], ['super_destaque', 'Super Destaque']]
 const infrastructureOptions = ['Alarme', 'Ar-condicionado', 'Aquecimento de água', 'Energia solar', 'Imóvel em condomínio', 'Interfone', 'Internet', 'Mobiliado', 'Placas fotovoltaicas', 'Portão elétrico', 'Semimobiliado', 'Terraço', 'TV a cabo']
 const serviceAreaOptions = ['Área de serviço', 'Banheiro de empregado', 'Copa', 'Cozinha', 'Despensa', 'Dormitório de empregada', 'Lavanderia']
 const leisureAreaOptions = ['Adega', 'Campo de futebol', 'Churrasqueira', 'Ofurô', 'Piscina', 'Playground', 'Quadra de tênis', 'Quadra poliesportiva', 'Quintal', 'Sauna', 'Solário', 'Varanda gourmet', 'Vestiário']
@@ -656,6 +657,7 @@ interface PropertyEditorDraft {
   videos: string
   links: PropertyLink[]
   activePortals: IntegrationPortal[]
+  portalLevels?: Partial<Record<IntegrationPortal, PortalHighlightLevel>>
   hadPendingPhotos: boolean
 }
 
@@ -728,6 +730,7 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
   const [videos, setVideos] = useState(() => initialDraft?.videos ?? (property?.property_videos ?? []).map((video) => video.url).join('\n'))
   const [links, setLinks] = useState<PropertyLink[]>(() => initialDraft?.links ?? property?.property_links ?? [])
   const [activePortals, setActivePortals] = useState<IntegrationPortal[]>(() => initialDraft?.activePortals ?? property?.integrations?.filter((integration) => integration.ativo).map((integration) => integration.portal) ?? [])
+  const [portalLevels, setPortalLevels] = useState<Partial<Record<IntegrationPortal, PortalHighlightLevel>>>(() => initialDraft?.portalLevels ?? Object.fromEntries((property?.integrations ?? []).map((integration) => [integration.portal, integration.nivel_destaque ?? 'basico'])))
   const [draftRestored] = useState(Boolean(initialDraft))
   const [draftError, setDraftError] = useState('')
   const hadPendingPhotos = useRef(Boolean(initialDraft?.hadPendingPhotos))
@@ -745,6 +748,7 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
       videos,
       links,
       activePortals,
+      portalLevels,
       hadPendingPhotos: hadPendingPhotos.current || photos.length > 0,
     }
     try {
@@ -755,7 +759,7 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
       console.error('Could not save the property editor draft:', reason)
       setDraftError('Não foi possível guardar o rascunho neste navegador.')
     }
-  }, [activePortals, draftKey, images, links, photos.length, values, videos])
+  }, [activePortals, draftKey, images, links, photos.length, portalLevels, values, videos])
   useEffect(() => {
     const zipCode = String(values.zip_code ?? '').replace(/\D/g, '')
     if (zipCode === lastZipCode.current) return
@@ -868,7 +872,7 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
           throw new Error(`Para incluir este imóvel no feed do DF Imóveis, preencha: ${missing.join(', ')}.`)
         }
       }
-      await saveProperty(propertyValues, property?.id ?? null, photos, videoUrls, links, images, [], activePortals)
+      await saveProperty(propertyValues, property?.id ?? null, photos, videoUrls, links, images, [], activePortals, portalLevels)
       clearPropertyEditorDraft(userId, property?.id ?? null)
       setSuccess('Imóvel salvo com sucesso.')
       onSaved()
@@ -928,7 +932,7 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
     </div></section>
     <section className="form-section"><div className="form-section-heading"><span>15</span><div><h2>Vídeos</h2><p>Adicione links do YouTube, um por linha</p></div></div><label className="admin-field">Links de vídeo<textarea rows={3} value={videos} onChange={(event) => setVideos(event.target.value)} placeholder="https://www.youtube.com/watch?v=..." /></label></section>
     <section className="form-section"><div className="form-section-heading"><span>16</span><div><h2>Links externos</h2><p>Tour virtual, redes sociais ou outros portais</p></div></div><div className="link-editor-list">{links.map((link, index) => <div className="link-editor-row" key={link.id || `new-${index}`}><input placeholder="Nome do link" value={link.name} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} /><input placeholder="URL https://" value={link.url} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, url: event.target.value } : item))} /><input placeholder="URL da imagem / logotipo (opcional)" value={link.image_url ?? ''} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, image_url: event.target.value || null } : item))} /><label className="check-field"><input type="checkbox" checked={link.is_public} onChange={(event) => setLinks((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, is_public: event.target.checked } : item))} />Público</label><button type="button" className="icon-button" onClick={() => moveLink(index, -1)} aria-label="Mover link para cima"><ArrowUp size={14} /></button><button type="button" className="icon-button" onClick={() => moveLink(index, 1)} aria-label="Mover link para baixo"><ArrowDown size={14} /></button><button type="button" className="icon-button danger" onClick={() => setLinks((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label="Excluir link"><Trash2 size={16} /></button></div>)}<button type="button" className="add-link" onClick={() => setLinks((current) => [...current, { id: '', property_id: property?.id ?? '', name: '', url: '', image_url: null, is_public: true, display_order: current.length }])}><Plus size={16} /> Adicionar link</button></div></section>
-    <section className="form-section"><div className="form-section-heading"><span>17</span><div><h2>Portais imobiliários</h2><p>Selecione onde este imóvel deverá ser preparado para publicação</p></div></div><p className="integration-notice">O feed XML do DF Imóveis é atualizado automaticamente. Ele inclui somente imóveis salvos, selecionados para o portal, com status Publicado e dados obrigatórios preenchidos.</p><div className="integration-options">{([['olx', 'OLX'], ['wimoveis', 'Wimóveis'], ['dfimoveis', 'DF Imóveis']] as const).map(([portal, label]) => <label className="check-field integration-option" key={portal}><input type="checkbox" checked={activePortals.includes(portal)} onChange={(event) => setActivePortals((current) => event.target.checked ? [...current, portal] : current.filter((item) => item !== portal))} /><span><strong>{label}</strong><small>{portal === 'dfimoveis' ? 'Incluir este imóvel no feed XML' : 'Incluir este imóvel na seleção do portal'}</small></span></label>)}</div>{activePortals.includes('dfimoveis') && <div className="admin-form-grid"><label className="admin-field">Tipo no DF Imóveis<select required value={values.dfimoveis_type ?? ''} onChange={(event) => setValues((current) => ({ ...current, dfimoveis_type: event.target.value || null, dfimoveis_subtype: null }))}><option value="">Selecione o tipo</option>{dfImoveisTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label className="admin-field">Subtipo no DF Imóveis<select required disabled={!values.dfimoveis_type} value={values.dfimoveis_subtype ?? ''} onChange={(event) => setValues((current) => ({ ...current, dfimoveis_subtype: event.target.value || null }))}><option value="">Selecione o subtipo</option>{(dfImoveisSubtypes[values.dfimoveis_type ?? ''] ?? []).map((subtype) => <option key={subtype} value={subtype}>{subtype}</option>)}</select></label>{field('Área do terreno (m²)', 'land_area', 'number', true)}<p className="integration-notice">O tipo e o subtipo seguem as opções da documentação do DF Imóveis. Se faltar algum dado obrigatório, o imóvel não será salvo com a publicação marcada.</p></div>}</section>
+    <section className="form-section"><div className="form-section-heading"><span>17</span><div><h2>Portais imobiliários</h2><p>Selecione onde este imóvel deverá ser preparado para publicação</p></div></div><p className="integration-notice">O feed XML do DF Imóveis é atualizado automaticamente. Ele inclui somente imóveis salvos, selecionados para o portal, com status Publicado e dados obrigatórios preenchidos.</p><div className="integration-options">{([['olx', 'OLX'], ['wimoveis', 'Wimóveis'], ['dfimoveis', 'DF Imóveis']] as const).map(([portal, label]) => <label className="check-field integration-option" key={portal}><input type="checkbox" checked={activePortals.includes(portal)} onChange={(event) => setActivePortals((current) => event.target.checked ? [...current, portal] : current.filter((item) => item !== portal))} /><span><strong>{label}</strong><small>{portal === 'dfimoveis' ? 'Incluir este imóvel no feed XML' : 'Incluir este imóvel na seleção do portal'}</small>{activePortals.includes(portal) && <select className="integration-level" aria-label={`Nível do anúncio no ${label}`} value={portalLevels[portal] ?? 'basico'} onChange={(event) => { const level = event.target.value as PortalHighlightLevel; setPortalLevels((current) => ({ ...current, [portal]: level })) }}>{portalHighlightLevels.map(([level, levelLabel]) => <option key={level} value={level}>{levelLabel}</option>)}</select>}</span></label>)}</div>{activePortals.includes('dfimoveis') && <div className="admin-form-grid"><label className="admin-field">Tipo no DF Imóveis<select required value={values.dfimoveis_type ?? ''} onChange={(event) => setValues((current) => ({ ...current, dfimoveis_type: event.target.value || null, dfimoveis_subtype: null }))}><option value="">Selecione o tipo</option>{dfImoveisTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label className="admin-field">Subtipo no DF Imóveis<select required disabled={!values.dfimoveis_type} value={values.dfimoveis_subtype ?? ''} onChange={(event) => setValues((current) => ({ ...current, dfimoveis_subtype: event.target.value || null }))}><option value="">Selecione o subtipo</option>{(dfImoveisSubtypes[values.dfimoveis_type ?? ''] ?? []).map((subtype) => <option key={subtype} value={subtype}>{subtype}</option>)}</select></label>{field('Área do terreno (m²)', 'land_area', 'number', true)}<p className="integration-notice">O tipo e o subtipo seguem as opções da documentação do DF Imóveis. Se faltar algum dado obrigatório, o imóvel não será salvo com a publicação marcada.</p></div>}</section>
     <div className="editor-bottom"><button type="button" className="button button-outline" onClick={onCancel}>Cancelar</button><button className="button button-dark" disabled={saving}>{saving ? 'Salvando...' : 'Salvar imóvel'}</button></div>
   </form>
 }

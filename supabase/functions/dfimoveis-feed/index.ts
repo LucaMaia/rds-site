@@ -41,7 +41,7 @@ type FeedProperty = {
   description: string
   property_images: FeedImage[] | null
   property_videos: FeedVideo[] | null
-  imovel_integracoes: Array<{ portal: string; ativo: boolean }>
+  imovel_integracoes: Array<{ portal: string; ativo: boolean; nivel_destaque: string | null }>
 }
 
 class FeedError extends Error {
@@ -113,6 +113,7 @@ function propertyXml(property: FeedProperty, customerCode: string): string {
     .filter((video) => /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(video.url))
     .sort((left, right) => left.display_order - right.display_order)
   const address = [property.address, property.number].filter(Boolean).join(', ')
+  const highlightLevel = property.imovel_integracoes.find((integration) => integration.portal === 'dfimoveis')?.nivel_destaque
   const xml = [
     element('CodigoCliente', customerCode),
     element('CodigoImovel', property.code),
@@ -132,8 +133,8 @@ function propertyXml(property: FeedProperty, customerCode: string): string {
     element('QtdSalas', property.living_rooms),
     element('Observacao', property.description.slice(0, 5000)),
     element('Diferencial', (property.features ?? []).join(', ').slice(0, 100)),
-    checkbox('Destaque', false),
-    checkbox('UltraDestaque', false),
+    checkbox('Destaque', highlightLevel === 'destaque'),
+    checkbox('UltraDestaque', highlightLevel === 'super_destaque'),
     checkbox('ArCondicionado', features.includes('ar-condicionado') || features.includes('ar condicionado')),
     checkbox('AquecimentoSolar', features.includes('aquecimento solar')),
     checkbox('AreaLazer', Boolean(property.leisure_areas?.length)),
@@ -205,7 +206,7 @@ async function loadProperties(baseUrl: string, serviceKey: string): Promise<Feed
       'total_area', 'private_area', 'land_area', 'bedrooms', 'suites', 'bathrooms', 'parking_spaces', 'living_rooms',
       'financing', 'trade', 'features', 'infrastructure', 'service_areas', 'leisure_areas', 'closets',
       'intimate_features', 'social_balcony', 'description',
-      'property_images(url,display_order)', 'property_videos(url,display_order)', 'imovel_integracoes!inner(portal,ativo)',
+      'property_images(url,display_order)', 'property_videos(url,display_order)', 'imovel_integracoes!inner(portal,ativo,nivel_destaque)',
     ].join(','),
     status: 'eq.PUBLICADO',
     'imovel_integracoes.portal': 'eq.dfimoveis',
