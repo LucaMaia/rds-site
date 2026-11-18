@@ -362,7 +362,7 @@ function HomePage() {
         <div className="hero-shade" />
         <div className="hero-content">
           <span className="hero-kicker"><span /> IMÓVEIS SELECIONADOS · BRASÍLIA E GOIÁS</span>
-          <h1>Encontre um lugar<br />para chamar de <em>seu</em><span className="hero-brand-line">através da RD&amp;S Imóveis.</span></h1>
+          <h1>Encontre um lugar<br />para chamar de <em className="hero-accent">seu</em><span className="hero-brand-line"><span className="hero-brand-rule" aria-hidden="true" /><span className="hero-brand-prefix">através da</span> <strong>RD&amp;S Imóveis</strong></span></h1>
           <p>Explore imóveis selecionados nas melhores regiões de Brasília e de outras localidades.</p>
         </div>
         <div className="hero-search"><SearchBox onFiltersChange={setSearchFilters} /></div>
