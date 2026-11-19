@@ -9,6 +9,8 @@ export type PropertyStatus =
 
 export type Purpose = 'VENDA' | 'ALUGUEL' | 'AMBOS'
 
+export type WatermarkPosition = 'top_left' | 'top_right' | 'center' | 'bottom_left' | 'bottom_right'
+
 export interface Captor {
   id: string
   name: string
@@ -91,6 +93,9 @@ export interface Property {
   floor_types?: string[]
   description: string
   featured: boolean
+  show_watermark?: boolean
+  watermark_position?: WatermarkPosition
+  watermark_transparency?: number
   created_at: string
   updated_at?: string
   captor?: PublicCaptor | null
@@ -234,6 +239,9 @@ export interface PropertyInput {
   floor_types: string[]
   description: string
   featured: boolean
+  show_watermark: boolean
+  watermark_position: WatermarkPosition
+  watermark_transparency: number
 }
 
 export interface DbTable<Row, Insert = Partial<Row>, Update = Partial<Row>> {
