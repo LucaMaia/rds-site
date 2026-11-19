@@ -771,13 +771,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
    Tamanhos em cqmin = % do menor lado da foto, iguais em qualquer proporção. */
 .wm-overlay{position:absolute;inset:0;container-type:size;pointer-events:none;user-select:none;-webkit-user-select:none;overflow:hidden}
 .region-tile>.wm-overlay{position:absolute}
-.wm-overlay>img{position:absolute;width:15%;height:auto;max-width:none;object-fit:contain;-webkit-user-drag:none}
-.wm-top_left>img,.wm-top_right>img,.wm-bottom_left>img,.wm-bottom_right>img{width:17cqmin;height:17cqmin;min-width:14px;min-height:14px}
+.wm-overlay>img{position:absolute;width:15%;height:auto;max-width:none;aspect-ratio:523/240;object-fit:contain;-webkit-user-drag:none;filter:drop-shadow(0 1px 3px rgba(0,0,0,.35))}
+.wm-top_left>img,.wm-top_right>img,.wm-bottom_left>img,.wm-bottom_right>img{width:30cqmin;height:auto;min-width:30px}
 .wm-top_left>img{top:4cqmin;left:4cqmin}
 .wm-top_right>img{top:4cqmin;right:4cqmin}
 .wm-bottom_left>img{bottom:4cqmin;left:4cqmin}
 .wm-bottom_right>img{bottom:4cqmin;right:4cqmin}
-.wm-center>img{width:30%;width:40cqmin;height:40cqmin;top:50%;left:50%;transform:translate(-50%,-50%)}
+.wm-center>img{width:50%;width:70cqmin;height:auto;top:50%;left:50%;transform:translate(-50%,-50%)}
 /* Mesma posição, só afastada dos selos e textos que já ocupam aquele canto. */
 .card-photo-wrap>.wm-top_left>img,.card-photo-wrap>.wm-top_right>img{top:50px}
 .gallery-main.count-left .gallery-count{right:auto;left:14px}

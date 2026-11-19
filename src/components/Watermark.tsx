@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Property, WatermarkPosition } from '../types'
 
-export const watermarkLogoUrl = '/rds-logo.png'
+export const watermarkLogoUrl = '/rds-logo-wordmark.png'
 
 export const watermarkPositions: Array<[WatermarkPosition, string]> = [
   ['top_left', 'Superior esquerdo'],
