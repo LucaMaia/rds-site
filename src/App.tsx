@@ -71,7 +71,7 @@ function ScrollManager() {
 function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   return <header className="site-header">
-    <Link className="brand" to="/" aria-label="RDS Imóveis, início"><span className="brand-logo-frame"><img className="brand-logo" src="/rds-logo.png" alt="" /></span></Link>
+    <Link className="brand" to="/" aria-label="RDS Imóveis, início"><img className="brand-wordmark" src="/rds-logo-wordmark.png" alt="" width={523} height={240} /></Link>
     <button className="mobile-menu" onClick={() => setMenuOpen(!menuOpen)} aria-label="Abrir menu"><Menu size={21} /></button>
     <nav className={menuOpen ? 'main-nav is-open' : 'main-nav'}>
       <Link to="/" onClick={() => setMenuOpen(false)}>Início</Link>
@@ -93,7 +93,7 @@ function Footer() {
   useEffect(() => { getSiteSettings().then(setSettings).catch((reason: Error) => setSettingsError(reason.message)) }, [])
   return <footer className="site-footer" id="contato">
     <div className="footer-main">
-      <div><Link className="brand brand-footer" to="/" aria-label="RDS Imóveis, início"><span className="brand-logo-frame"><img className="brand-logo" src="/rds-logo.png" alt="" /></span></Link><p>Endereços para viver bem.<br />Imóveis selecionados com cuidado.</p></div>
+      <div><Link className="brand brand-footer" to="/" aria-label="RDS Imóveis, início"><img className="brand-wordmark" src="/rds-logo-wordmark.png" alt="" width={523} height={240} /></Link><p>Endereços para viver bem.<br />Imóveis selecionados com cuidado.</p></div>
       <div><span className="footer-title">Explore</span><Link to="/imoveis">Todos os imóveis</Link><Link to="/imoveis?finalidade=VENDA">Comprar</Link><Link to="/imoveis?finalidade=ALUGUEL">Alugar</Link></div>
       <div><span className="footer-title">Fale com a gente</span>{settings.whatsapp && <a href={whatsappContactUrl(settings.whatsapp)} target="_blank" rel="noreferrer">WhatsApp</a>}{settings.instagram_url && <a href={settings.instagram_url} target="_blank" rel="noreferrer">Instagram</a>}{settings.contact_email && <a href={`mailto:${settings.contact_email}`}>{settings.contact_email}</a>}{settingsError && <span className="footer-settings-error">Contato temporariamente indisponível.</span>}{!settings.whatsapp && !settings.contact_email && !settingsError && <span>Configure seus canais de contato</span>}</div>
     </div>
@@ -1296,7 +1296,7 @@ function AdminPage() {
   }
 
   if (authLoading) return <div className="admin-loading"><Loading message="Verificando sessão" /></div>
-  if (!user || !authorized) return <main className="login-page"><Link to="/" className="login-back"><ArrowLeft size={15} /> Voltar ao site</Link><div className="login-card"><Link className="brand login-brand" to="/" aria-label="RDS Imóveis, início"><span className="brand-logo-frame"><img className="brand-logo" src="/rds-logo.png" alt="" /></span></Link><span className="eyebrow gold">ESPAÇO DA EQUIPE</span><h1>Acesse sua<br /><em>área de gestão.</em></h1><p>Entre para gerenciar seus imóveis e acompanhar a carteira.</p>{!isSupabaseConfigured && <div className="admin-alert info-alert">O site público está em modo de demonstração. Configure o Supabase para habilitar o acesso administrativo e a persistência.</div>}{authError && <div className="admin-alert error-alert">{authError}</div>}<form onSubmit={login}><label className="admin-field">Usuário ou e-mail<input value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" required placeholder="admin" /></label><label className="admin-field">Senha<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required placeholder="Sua senha" /></label><button className="button button-dark full-button" disabled={loginLoading}><KeyRound size={16} />{loginLoading ? 'Verificando...' : 'Entrar na plataforma'}</button></form><span className="login-security"><KeyRound size={13} /> Acesso protegido e reservado à equipe RDS</span></div></main>
+  if (!user || !authorized) return <main className="login-page"><Link to="/" className="login-back"><ArrowLeft size={15} /> Voltar ao site</Link><div className="login-card"><Link className="brand login-brand" to="/" aria-label="RDS Imóveis, início"><img className="brand-wordmark" src="/rds-logo-wordmark.png" alt="" width={523} height={240} /></Link><span className="eyebrow gold">ESPAÇO DA EQUIPE</span><h1>Acesse sua<br /><em>área de gestão.</em></h1><p>Entre para gerenciar seus imóveis e acompanhar a carteira.</p>{!isSupabaseConfigured && <div className="admin-alert info-alert">O site público está em modo de demonstração. Configure o Supabase para habilitar o acesso administrativo e a persistência.</div>}{authError && <div className="admin-alert error-alert">{authError}</div>}<form onSubmit={login}><label className="admin-field">Usuário ou e-mail<input value={identifier} onChange={(event) => setIdentifier(event.target.value)} autoComplete="username" required placeholder="admin" /></label><label className="admin-field">Senha<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required placeholder="Sua senha" /></label><button className="button button-dark full-button" disabled={loginLoading}><KeyRound size={16} />{loginLoading ? 'Verificando...' : 'Entrar na plataforma'}</button></form><span className="login-security"><KeyRound size={13} /> Acesso protegido e reservado à equipe RDS</span></div></main>
 
   const filtered = properties.filter((property) => {
     const text = `${property.code} ${property.title} ${property.city} ${property.neighborhood} ${property.captor?.name ?? ''}`.toLowerCase()
@@ -1392,7 +1392,7 @@ function AdminPage() {
   }, {})).sort((a, b) => b[1] - a[1]).slice(0, 8)
   const reportMax = Math.max(1, ...captorCounts.map(([, count]) => count))
   return <div className="admin-shell">
-    <aside className="admin-sidebar"><Link className="brand admin-brand" to="/" aria-label="RDS Imóveis, início"><span className="brand-logo-frame"><img className="brand-logo" src="/rds-logo.png" alt="" /></span></Link><span className="sidebar-label">GESTÃO</span><nav className="side-nav">
+    <aside className="admin-sidebar"><Link className="brand admin-brand" to="/" aria-label="RDS Imóveis, início"><img className="brand-wordmark" src="/rds-logo-wordmark.png" alt="" width={523} height={240} /></Link><span className="sidebar-label">GESTÃO</span><nav className="side-nav">
       <button className={view === 'overview' ? 'side-link active' : 'side-link'} onClick={() => changeView('overview')}><LayoutDashboard size={17} /> Visão geral</button>
       <button className={view === 'properties' ? 'side-link active' : 'side-link'} onClick={() => changeView('properties')}><Home size={17} /> Todos os imóveis<span className="side-count">{properties.length}</span></button>
       <button className={view === 'editor' ? 'side-link active' : 'side-link'} onClick={() => changeView('editor')}><Plus size={17} /> Cadastrar imóvel</button>
