@@ -38,6 +38,7 @@ type FeedProperty = {
   closets: string[] | null
   intimate_features: string[] | null
   social_balcony: boolean
+  exclusive: boolean | null
   description: string
   property_images: FeedImage[] | null
   property_videos: FeedVideo[] | null
@@ -132,7 +133,8 @@ function propertyXml(property: FeedProperty, customerCode: string): string {
     element('QtdVagas', property.parking_spaces),
     element('QtdSalas', property.living_rooms),
     element('Observacao', property.description.slice(0, 5000)),
-    element('Diferencial', (property.features ?? []).join(', ').slice(0, 100)),
+    // O DF Imóveis não tem campo próprio de exclusividade: vai no início do Diferencial.
+    element('Diferencial', [...(property.exclusive ? ['Exclusividade'] : []), ...(property.features ?? [])].join(', ').slice(0, 100)),
     checkbox('Destaque', highlightLevel === 'destaque'),
     checkbox('UltraDestaque', highlightLevel === 'super_destaque'),
     checkbox('ArCondicionado', features.includes('ar-condicionado') || features.includes('ar condicionado')),
@@ -205,7 +207,7 @@ async function loadProperties(baseUrl: string, serviceKey: string): Promise<Feed
       'neighborhood', 'address', 'number', 'complement', 'sale_price', 'rent_price', 'condo_fee', 'property_tax',
       'total_area', 'private_area', 'land_area', 'bedrooms', 'suites', 'bathrooms', 'parking_spaces', 'living_rooms',
       'financing', 'trade', 'features', 'infrastructure', 'service_areas', 'leisure_areas', 'closets',
-      'intimate_features', 'social_balcony', 'description',
+      'intimate_features', 'social_balcony', 'exclusive', 'description',
       'property_images(url,display_order)', 'property_videos(url,display_order)', 'imovel_integracoes!inner(portal,ativo,nivel_destaque)',
     ].join(','),
     status: 'eq.PUBLICADO',

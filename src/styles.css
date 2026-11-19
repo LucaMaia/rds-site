@@ -823,3 +823,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .wm-slider input{height:28px}
   .wm-preview-frame>img{max-height:300px}
 }
+
+/* Exclusividade */
+.exclusive-label{position:absolute;left:15px;bottom:15px;display:inline-flex;align-items:center;gap:5px;padding:7px 10px;border-radius:999px;background:#a88e60;color:#fff;font-size:8px;font-weight:700;letter-spacing:.15em;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.exclusive-badge{display:inline-flex;align-items:center;gap:7px;margin:-4px 0 14px;padding:7px 13px;border-radius:999px;background:#a88e60;color:#fff;font-size:12px;font-weight:600;letter-spacing:.04em}
+.exclusive-field{align-items:flex-start}
+.exclusive-field input{margin-top:2px}
+.exclusive-field span{display:flex;flex-direction:column;gap:3px}
+.exclusive-field strong{color:var(--ink);font-size:11px}
+.exclusive-field small{font-size:10px;color:var(--muted);line-height:1.45}
+.table-exclusive{margin-left:6px;padding:2px 7px;border-radius:999px;background:#f1ead9;color:#7d6638;font-style:normal;font-size:9px;font-weight:600}
+
+.card-photo-wrap:has(.exclusive-label)>.wm-bottom_left>img{bottom:46px}

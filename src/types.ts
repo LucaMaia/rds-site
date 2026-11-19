@@ -93,6 +93,7 @@ export interface Property {
   floor_types?: string[]
   description: string
   featured: boolean
+  exclusive?: boolean
   show_watermark?: boolean
   watermark_position?: WatermarkPosition
   watermark_transparency?: number
@@ -239,6 +240,7 @@ export interface PropertyInput {
   floor_types: string[]
   description: string
   featured: boolean
+  exclusive: boolean
   show_watermark: boolean
   watermark_position: WatermarkPosition
   watermark_transparency: number

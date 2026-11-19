@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
-  ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Bath, BedDouble, Building2, Check,
+  ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BadgeCheck, Bath, BedDouble, Building2, Check,
   ChevronDown, ChevronLeft, ChevronRight, CircleUserRound, Clipboard, DoorOpen, Filter, Globe, Home, Instagram,
   KeyRound, LayoutDashboard, LogOut, Mail, MapPin, Menu, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Youtube,
   Square, Trash2, Upload, Users, X,
@@ -167,6 +167,7 @@ function PropertyCard({ property }: { property: Property }) {
       <Photo property={property} className="card-photo" />
       <WatermarkOverlay settings={watermarkOf(property)} />
       {property.featured && <span className="featured-label">SELECIONADO</span>}
+      {property.exclusive && <span className="exclusive-label"><BadgeCheck size={12} />EXCLUSIVIDADE</span>}
       <span className="card-code">{property.code}</span>
     </Link>
     <div className="card-copy">
@@ -564,6 +565,7 @@ function DetailPage() {
       <article className="detail-main">
         <span className="eyebrow gold">{property.type} <span>·</span> {property.neighborhood}, {property.city}</span>
         <h1>{property.title}</h1>
+        {property.exclusive && <span className="exclusive-badge" title="Imóvel anunciado com exclusividade pela RDS Imóveis"><BadgeCheck size={16} />Exclusividade</span>}
         <p className="detail-location"><MapPin size={16} />{property.city}, {property.state}</p>
         <div className="detail-specs"><span><BedDouble />{property.bedrooms} quartos</span><span><Bath />{property.bathrooms} banheiros</span><span><Square />{property.total_area ?? '—'} m²</span><span><DoorOpen />{property.parking_spaces} vagas</span></div>
         <div className="detail-section"><h2>Sobre este imóvel</h2><p className="description">{property.description}</p></div>
@@ -631,7 +633,7 @@ const blankInput: PropertyInput = {
   total_area: null, private_area: null, land_area: null, bedrooms: 0, suites: 0, bathrooms: 0, parking_spaces: 0,
   floor: null, construction_year: null, furnished: false, financing: false, trade: false, features: [],
   owner_name: null, owner_phone: null, living_rooms: null, social_balcony: false, infrastructure: [], service_areas: [],
-  leisure_areas: [], intimate_features: [], closets: [], floor_types: [], description: '', featured: false,
+  leisure_areas: [], intimate_features: [], closets: [], floor_types: [], description: '', featured: false, exclusive: false,
   show_watermark: false, watermark_position: defaultWatermarkPosition, watermark_transparency: defaultWatermarkTransparency,
 }
 
@@ -905,6 +907,7 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
       <label className="admin-field">Captador<select value={values.captor_id ?? ''} onChange={(event) => setValues((current) => ({ ...current, captor_id: event.target.value || null }))}><option value="">Não atribuído</option>{captors.filter((member) => member.active).map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
       <label className="admin-field">Corretor de atendimento<select value={values.broker_id ?? ''} onChange={(event) => setValues((current) => ({ ...current, broker_id: event.target.value || null }))}><option value="">Não atribuído</option>{brokers.filter((member) => member.active).map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
       <label className="check-field"><input type="checkbox" checked={values.featured} onChange={(event) => setValues((current) => ({ ...current, featured: event.target.checked }))} />Destacar na página inicial</label>
+      <label className="check-field exclusive-field"><input type="checkbox" checked={values.exclusive} onChange={(event) => setValues((current) => ({ ...current, exclusive: event.target.checked }))} /><span><strong>Exclusividade</strong><small>Marque quando só a RDS puder anunciar este imóvel. A informação aparece no site e no DF Imóveis. Desmarcado, nada é exibido.</small></span></label>
     </div>{property?.status_history?.length ? <div className="status-history"><h3>Histórico de status</h3>{property.status_history.map((entry) => <div key={entry.id}><span>{new Date(entry.changed_at).toLocaleString('pt-BR')}</span><strong>{entry.from_status ? statusNames[entry.from_status] : 'Cadastro'} → {statusNames[entry.to_status]}</strong><small>Responsável: {entry.changed_by_name ?? 'Administrador'}</small></div>)}</div> : null}</section>
     <section className="form-section"><div className="form-section-heading"><span>02</span><div><h2>Localização</h2><p>O endereço público exibe região e cidade</p></div></div><div className="admin-form-grid">
       <label className="admin-field">CEP<input type="text" inputMode="numeric" autoComplete="postal-code" value={String(values.zip_code ?? '')} placeholder="00000-000" onChange={(event) => text('zip_code', event.target.value)} />{cepLookupStatus && <small role="status">{cepLookupStatus}</small>}</label>{field('Estado', 'state', 'text', true)}{field('Cidade', 'city', 'text', true)}{field('Região / bairro', 'neighborhood', 'text', true)}
@@ -1723,7 +1726,7 @@ function PropertyTable({ properties, onEdit, onDelete, onStatus, onDuplicate }: 
   onDuplicate: (property: Property) => void
 }) {
   return <div className="table-scroll"><table className="property-table"><thead><tr><th>Imóvel</th><th>Região</th><th>Valor</th><th>Captador</th><th>Cadastro</th><th>Status</th><th aria-label="Ações" /></tr></thead><tbody>
-    {properties.map((property) => <tr key={property.id}><td><div className="table-property"><Photo property={property} /><div><strong>{property.title}</strong><span>{property.code} · {property.type}</span></div></div></td><td>{property.neighborhood}<small>{property.city}</small></td><td>{currency(property.sale_price ?? property.rent_price)}</td><td>{property.captor?.name ?? '—'}</td><td>{new Date(property.created_at).toLocaleDateString('pt-BR')}</td><td><select className={`status-select status-${property.status.toLowerCase()}`} value={property.status} onChange={(event) => onStatus(property, event.target.value as PropertyStatus)} aria-label={`Status de ${property.code}`}>{statuses.map((status) => <option key={status} value={status}>{statusNames[status]}</option>)}</select></td><td><div className="table-actions"><button className="icon-button" onClick={() => onEdit(property)} aria-label="Editar"><ArrowUpRight size={16} /></button><button className="icon-button" onClick={() => onDuplicate(property)} aria-label="Duplicar"><Plus size={16} /></button><button className="icon-button danger" onClick={() => onDelete(property)} aria-label="Excluir"><Trash2 size={16} /></button></div></td></tr>)}
+    {properties.map((property) => <tr key={property.id}><td><div className="table-property"><Photo property={property} /><div><strong>{property.title}</strong><span>{property.code} · {property.type}{property.exclusive && <em className="table-exclusive">Exclusividade</em>}</span></div></div></td><td>{property.neighborhood}<small>{property.city}</small></td><td>{currency(property.sale_price ?? property.rent_price)}</td><td>{property.captor?.name ?? '—'}</td><td>{new Date(property.created_at).toLocaleDateString('pt-BR')}</td><td><select className={`status-select status-${property.status.toLowerCase()}`} value={property.status} onChange={(event) => onStatus(property, event.target.value as PropertyStatus)} aria-label={`Status de ${property.code}`}>{statuses.map((status) => <option key={status} value={status}>{statusNames[status]}</option>)}</select></td><td><div className="table-actions"><button className="icon-button" onClick={() => onEdit(property)} aria-label="Editar"><ArrowUpRight size={16} /></button><button className="icon-button" onClick={() => onDuplicate(property)} aria-label="Duplicar"><Plus size={16} /></button><button className="icon-button danger" onClick={() => onDelete(property)} aria-label="Excluir"><Trash2 size={16} /></button></div></td></tr>)}
     {!properties.length && <tr><td colSpan={7}><div className="table-empty">Nenhum imóvel encontrado.</div></td></tr>}
   </tbody></table></div>
 }
