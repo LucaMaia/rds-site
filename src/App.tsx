@@ -634,7 +634,7 @@ const blankInput: PropertyInput = {
   total_area: null, private_area: null, land_area: null, bedrooms: 0, suites: 0, bathrooms: 0, parking_spaces: 0,
   floor: null, construction_year: null, furnished: false, financing: false, trade: false, features: [],
   owner_name: null, owner_phone: null, living_rooms: null, social_balcony: false, infrastructure: [], service_areas: [],
-  leisure_areas: [], intimate_features: [], closets: [], floor_types: [], description: '', featured: false, exclusive: false,
+  leisure_areas: [], intimate_features: [], closets: [], floor_types: [], description: '', featured: true, exclusive: false,
   show_watermark: true, watermark_position: defaultWatermarkPosition, watermark_transparency: defaultWatermarkTransparency,
 }
 

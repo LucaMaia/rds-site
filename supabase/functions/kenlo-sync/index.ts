@@ -488,7 +488,9 @@ async function synchronize(db: SupabaseClient, listings: KenloListing[]): Promis
       const captorId = (broker?.email && captorByEmail.get(broker.email.toLowerCase()))
         || (broker?.name && captorByName.get(broker.name.trim().toLowerCase()))
         || null
-      const row: Record<string, unknown> = { id, ...fields, status: 'PUBLICADO', captor_id: captorId }
+      // Entra destacado na página inicial; o administrador pode desmarcar depois
+      // (as atualizações seguintes do Kenlo não mexem nesse campo).
+      const row: Record<string, unknown> = { id, ...fields, status: 'PUBLICADO', featured: true, captor_id: captorId }
       if (code && !usedCodes.has(code.toLowerCase())) {
         row.code = code
         usedCodes.add(code.toLowerCase())
