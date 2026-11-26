@@ -29,6 +29,7 @@ type KenloListing = {
     video?: Array<{ url?: string | null; name?: string | null }> | null
   } | null
   details?: {
+    usageType?: string | null
     propertyType?: string | null
     description?: string | null
     bedrooms?: number | null
@@ -172,6 +173,34 @@ function plainDescription(html: string): string {
     .trim()
 }
 
+// Tipos usados no site (mesma lista de propertyTypes em src/App.tsx).
+const siteTypes = ['Apartamento', 'Casa', 'Casa em condomínio', 'Cobertura', 'Kitnet', 'Terreno', 'Comercial', 'Chácara']
+
+// O Kenlo envia o tipo como código em inglês (APARTMENT, HOUSE, SMALLHOLDING, BUSINESS...).
+// A ordem importa: os casos mais específicos vêm antes.
+const typeRules: Array<[RegExp, string]> = [
+  [/PENTHOUSE|COBERTURA/, 'Cobertura'],
+  [/CONDO|CONDOMIN/, 'Casa em condomínio'],
+  [/KITNET|STUDIO|KITCHENETTE/, 'Kitnet'],
+  [/FARM|SMALLHOLD|RANCH|COUNTRY|CHACARA|SITIO|FAZENDA|RURAL/, 'Chácara'],
+  [/LAND|ALLOTMENT|\bLOT\b|TERRENO|LOTE/, 'Terreno'],
+  // Antes de Casa, porque WAREHOUSE contém HOUSE.
+  [/BUSINESS|COMMERCIAL|OFFICE|STORE|SHOP|WAREHOUSE|SHED|DEPOSIT|INDUSTRIAL|HOTEL|PARKING|GARAGE|CLINIC|CONSULT|SALA|LOJA|GALPAO|PREDIO/, 'Comercial'],
+  [/APART|FLAT|LOFT|DUPLEX|TRIPLEX/, 'Apartamento'],
+  [/HOUSE|HOME|SOBRADO|CASA/, 'Casa'],
+]
+
+function siteType(rawType: string, usageType: string): string {
+  const exact = siteTypes.find((type) => type.toLowerCase() === rawType.toLowerCase())
+  if (exact) return exact
+  const code = rawType.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[\s-]+/g, '_')
+  const rule = typeRules.find(([pattern]) => pattern.test(code))
+  if (rule) return rule[1]
+  if (/COMMERCIAL|CORPORATE|INDUSTRIAL/i.test(usageType)) return 'Comercial'
+  if (rawType) console.warn(`Kenlo property type without mapping: ${rawType} (${usageType})`)
+  return rawType || 'Casa'
+}
+
 function purposeOf(listing: KenloListing, sale: number | null, rent: number | null): ImportedFields['purpose'] {
   const purposes = new Set([...(listing.purposes ?? []), ...(listing.purpose ? [listing.purpose] : [])])
   const forSale = purposes.has('FOR_SALE')
@@ -201,7 +230,7 @@ async function mapListing(listing: KenloListing): Promise<Mapped> {
     return amount == null ? sum : sum + amount * Math.max(1, count(item.installmentQuantity))
   }, 0)
   const stateAbbreviation = text(location.state?.abbreviation) || text(address.stateOrProvince)
-  const type = text(details.propertyType) || 'Imóvel'
+  const type = siteType(text(details.propertyType), text(details.usageType))
   const neighborhood = text(location.neighborhood) || text(address.neighborhood)
   const city = text(location.city) || text(address.city)
   const unit = text(details.area?.unit)
