@@ -338,7 +338,7 @@ function HomePage() {
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({ term: '', type: '' })
   const hasSearchFilters = Boolean(searchFilters.term.trim() || searchFilters.type)
   const featured = useMemo(
-    () => properties.filter((property) => property.featured && matchesSearchFilters(property, searchFilters)).slice(0, 7),
+    () => properties.filter((property) => property.featured && matchesSearchFilters(property, searchFilters)),
     [properties, searchFilters],
   )
   const regionCards = useMemo(() => regions.map((region) => {
