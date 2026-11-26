@@ -12,7 +12,7 @@ import { dfImoveisMissingFields, dfImoveisSubtypes, dfImoveisTypes } from './lib
 import { createZip, type ZipEntry } from './lib/zip'
 import { currency, numberValue, whatsappContactUrl, whatsappUrl, youtubeEmbed } from './lib/format'
 import { supabase } from './lib/supabase'
-import { defaultWatermarkPosition, defaultWatermarkTransparency, WatermarkEditor, WatermarkOverlay, watermarkOf } from './components/Watermark'
+import { defaultWatermarkPosition, defaultWatermarkTransparency, WatermarkOverlay, WatermarkPreview, watermarkOf } from './components/Watermark'
 import type { Captor, IntegrationPortal, PortalHighlightLevel, Property, PropertyImage, PropertyInput, PropertyInteraction, PropertyLink, PropertyStatus } from './types'
 
 const regions = ['Guará', 'Águas Claras', 'Asa Sul', 'Asa Norte', 'Sudoeste', 'Noroeste', 'Lago Sul', 'Lago Norte', 'Taguatinga', 'Ceilândia', 'Samambaia', 'Vicente Pires', 'Park Sul', 'Jardim Botânico', 'Park Way', 'Sobradinho', 'Valparaíso', 'Cidade Ocidental']
@@ -635,7 +635,7 @@ const blankInput: PropertyInput = {
   floor: null, construction_year: null, furnished: false, financing: false, trade: false, features: [],
   owner_name: null, owner_phone: null, living_rooms: null, social_balcony: false, infrastructure: [], service_areas: [],
   leisure_areas: [], intimate_features: [], closets: [], floor_types: [], description: '', featured: false, exclusive: false,
-  show_watermark: false, watermark_position: defaultWatermarkPosition, watermark_transparency: defaultWatermarkTransparency,
+  show_watermark: true, watermark_position: defaultWatermarkPosition, watermark_transparency: defaultWatermarkTransparency,
 }
 
 const brazilianStateNames: Record<string, string> = {
@@ -926,6 +926,10 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
       }
       const propertyValues = {
         ...values,
+        // Marca d'água padrão da RDS em todo imóvel salvo (não há mais configuração por imóvel).
+        show_watermark: true,
+        watermark_position: defaultWatermarkPosition,
+        watermark_transparency: defaultWatermarkTransparency,
         owner_name: values.owner_name?.trim() || null,
         owner_phone: values.owner_phone?.trim() || null,
       }
@@ -998,9 +1002,7 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
       {images.map((image, index) => <div className="managed-image" key={image.id}><img src={image.url} alt={`Foto ${index + 1}`} /><span>{index === 0 ? 'Principal' : `Foto ${index + 1}`}</span><div><button type="button" onClick={() => moveImage(index, -1)} aria-label="Mover foto para cima"><ArrowUp size={14} /></button><button type="button" onClick={() => moveImage(index, 1)} aria-label="Mover foto para baixo"><ArrowDown size={14} /></button><button type="button" onClick={() => setImages((current) => current.filter((item) => item.id !== image.id).map((item, order) => ({ ...item, display_order: order, is_cover: order === 0 })))} aria-label="Remover foto"><Trash2 size={14} /></button></div></div>)}
       {photos.map((file, index) => <div className="managed-image" key={`${file.name}-${index}`}><img src={photoPreviewUrls[index]} alt={file.name} /><span>Nova foto</span><button type="button" onClick={() => setPhotos((current) => current.filter((_, fileIndex) => fileIndex !== index))} aria-label="Remover nova foto"><Trash2 size={14} /></button></div>)}
     </div></section>
-    <section className="form-section"><div className="form-section-heading"><span>15</span><div><h2>Personalização da logo nas imagens</h2><p>Marca d'água da RDS aplicada sobre as fotografias deste imóvel, sem alterar os arquivos originais</p></div></div><WatermarkEditor
-      value={{ show_watermark: values.show_watermark, watermark_position: values.watermark_position, watermark_transparency: values.watermark_transparency }}
-      onChange={(next) => setValues((current) => ({ ...current, ...next }))}
+    <section className="form-section"><div className="form-section-heading"><span>15</span><div><h2>Logo da RDS nas imagens</h2><p>Marca d'água aplicada automaticamente sobre as fotografias, sem alterar os arquivos originais</p></div></div><WatermarkPreview
       previewSources={[...images.map((image) => image.url), ...photoPreviewUrls]}
     /></section>
     <section className="form-section"><div className="form-section-heading"><span>16</span><div><h2>Vídeos</h2><p>Adicione links do YouTube, um por linha</p></div></div><label className="admin-field">Links de vídeo<textarea rows={3} value={videos} onChange={(event) => setVideos(event.target.value)} placeholder="https://www.youtube.com/watch?v=..." /></label></section>
