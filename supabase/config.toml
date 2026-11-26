@@ -6,3 +6,6 @@ verify_jwt = false
 
 [functions.kenlo-sync]
 verify_jwt = false
+
+[functions.kenlo-images-copy]
+verify_jwt = false

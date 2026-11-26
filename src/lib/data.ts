@@ -98,18 +98,59 @@ export interface KenloSyncStatus {
   lastRun: KenloSyncRun | null
   lastSuccess: KenloSyncRun | null
   linkedCount: number
+  // Fotos que ainda apontam para fora do site (ex.: Kenlo) e precisam ser copiadas.
+  externalImages: number
 }
 
 export async function getKenloSyncStatus(): Promise<KenloSyncStatus> {
   const client = requireSupabase()
-  const [runs, success, linked] = await Promise.all([
+  const [runs, success, linked, externalResult] = await Promise.all([
     client.from('kenlo_sync_runs').select('*').order('started_at', { ascending: false }).limit(1),
     client.from('kenlo_sync_runs').select('*').eq('status', 'success').order('started_at', { ascending: false }).limit(1),
     client.from('kenlo_listings').select('listing_id', { count: 'exact', head: true }).not('property_id', 'is', null).is('removed_at', null),
+    client.from('property_images').select('id', { count: 'exact', head: true }).not('url', 'like', `%${storageImageMarker}%`),
   ])
-  if (isMissingTable(runs.error) || isMissingTable(linked.error)) return { available: false, lastRun: null, lastSuccess: null, linkedCount: 0 }
-  for (const result of [runs, success, linked]) if (result.error) throw result.error
-  return { available: true, lastRun: runs.data?.[0] ?? null, lastSuccess: success.data?.[0] ?? null, linkedCount: linked.count ?? 0 }
+  if (isMissingTable(runs.error) || isMissingTable(linked.error)) return { available: false, lastRun: null, lastSuccess: null, linkedCount: 0, externalImages: 0 }
+  for (const result of [runs, success, linked, externalResult]) if (result.error) throw result.error
+  return { available: true, lastRun: runs.data?.[0] ?? null, lastSuccess: success.data?.[0] ?? null, linkedCount: linked.count ?? 0, externalImages: externalResult.count ?? 0 }
+}
+
+const storageImageMarker = '/storage/v1/object/public/property-images/'
+
+export interface ImageCopyResult {
+  copied: number
+  failed: number
+  remaining: number
+}
+
+// Copia para o Storage do site as fotos que ainda estão fora (Kenlo), em lotes.
+export async function copyExternalImages(onProgress?: (progress: ImageCopyResult) => void): Promise<ImageCopyResult> {
+  const client = requireSupabase()
+  const total: ImageCopyResult = { copied: 0, failed: 0, remaining: 0 }
+  let after: string | null = null
+  for (;;) {
+    const { data, error } = await client.functions.invoke('kenlo-images-copy', { body: after ? { after } : {} })
+    if (error) {
+      let message = ''
+      if ('context' in error && error.context instanceof Response) {
+        if (error.context.status === 404) throw new Error('A função kenlo-images-copy ainda não foi publicada no Supabase. Rode supabase functions deploy kenlo-images-copy.')
+        try {
+          const body: unknown = await error.context.clone().json()
+          if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') message = body.error
+        } catch {
+          message = ''
+        }
+      }
+      throw new Error(message || 'Não foi possível copiar as fotos. Confira os logs da Edge Function kenlo-images-copy.')
+    }
+    const batch = data as { processed: number; copied: number; failed: unknown[]; nextAfter: string | null; remaining: number | null }
+    total.copied += batch.copied
+    total.failed += batch.failed.length
+    total.remaining = batch.remaining ?? total.remaining
+    onProgress?.({ ...total })
+    if (!batch.processed || !batch.nextAfter) return total
+    after = batch.nextAfter
+  }
 }
 
 export interface KenloSyncResult {

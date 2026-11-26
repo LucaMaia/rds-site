@@ -414,20 +414,53 @@ async function selectAll<T>(db: SupabaseClient, table: string, columns: string):
   }
 }
 
+const STORAGE_MARKER = '/storage/v1/object/public/property-images/'
+
 async function replaceMedia(db: SupabaseClient, items: Array<{ propertyId: string; images: string[]; videos: string[] }>): Promise<void> {
+  // Fotos já copiadas para o Storage do site (kenlo-images-copy): a origem do
+  // Kenlo fica em source_url. Reaproveita a cópia quando a foto continua no
+  // anúncio e apaga do Storage as cópias de fotos que saíram do Kenlo.
+  const copies = new Map<string, string>()
+  for (const group of chunks(items, 100)) {
+    const ids = group.map((item) => item.propertyId)
+    const { data, error } = await db.from('property_images').select('property_id,url,source_url').in('property_id', ids).not('source_url', 'is', null)
+    fail('Leitura das fotos copiadas', error)
+    for (const row of (data ?? []) as Array<{ property_id: string; url: string; source_url: string }>) {
+      copies.set(`${row.property_id}|${row.source_url}`, row.url)
+    }
+  }
+  const imageRows = items.flatMap((item) => item.images.map((url, index) => {
+    const key = `${item.propertyId}|${url}`
+    const copy = copies.get(key)
+    copies.delete(key)
+    return { property_id: item.propertyId, url: copy ?? url, source_url: copy ? url : null, display_order: index, is_cover: index === 0 }
+  }))
+  const droppedCopyUrls = [...copies.values()]
+
   for (const group of chunks(items, 100)) {
     const ids = group.map((item) => item.propertyId)
     fail('Remoção de fotos antigas', (await db.from('property_images').delete().in('property_id', ids)).error)
     fail('Remoção de vídeos antigos', (await db.from('property_videos').delete().in('property_id', ids)).error)
   }
-  const imageRows = items.flatMap((item) => item.images.map((url, index) => ({
-    property_id: item.propertyId, url, display_order: index, is_cover: index === 0,
-  })))
   const videoRows = items.flatMap((item) => item.videos.map((url, index) => ({
     property_id: item.propertyId, url, display_order: index,
   })))
   for (const group of chunks(imageRows, 500)) fail('Gravação de fotos', (await db.from('property_images').insert(group)).error)
   for (const group of chunks(videoRows, 500)) fail('Gravação de vídeos', (await db.from('property_videos').insert(group)).error)
+  // Só apaga o arquivo se nenhum outro imóvel (ex.: um duplicado no painel) ainda usa a mesma foto.
+  const stillUsed = new Set<string>()
+  for (const group of chunks(droppedCopyUrls, 100)) {
+    const { data, error } = await db.from('property_images').select('url').in('url', group)
+    fail('Verificação de fotos em uso', error)
+    for (const row of (data ?? []) as Array<{ url: string }>) stillUsed.add(row.url)
+  }
+  const unusedCopies = droppedCopyUrls
+    .filter((url) => !stillUsed.has(url) && url.includes(STORAGE_MARKER))
+    .map((url) => decodeURIComponent(url.slice(url.indexOf(STORAGE_MARKER) + STORAGE_MARKER.length)))
+  for (const group of chunks(unusedCopies, 100)) {
+    const { error } = await db.storage.from('property-images').remove(group)
+    if (error) console.warn(`Não foi possível apagar cópias antigas do Storage: ${error.message}`)
+  }
 }
 
 type Summary = {

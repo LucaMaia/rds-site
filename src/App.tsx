@@ -6,7 +6,7 @@ import {
   KeyRound, LayoutDashboard, LogOut, Mail, MapPin, Menu, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Youtube,
   Square, Trash2, Upload, Users, X,
 } from 'lucide-react'
-import { deleteProperty, deleteTeamMember, getAdminProperties, getDfImoveisCustomerCode, getKenloSyncStatus, runKenloSync, getPortalListings, getPropertyInteractions, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveDfImoveisCustomerCode, saveProperty, saveSiteSettings, saveTeamMember, sendPropertyInquiry, trackPropertyWhatsAppClick, updatePortalHighlightLevel, updatePropertyStatus, updateTeamMember } from './lib/data'
+import { deleteProperty, deleteTeamMember, getAdminProperties, getDfImoveisCustomerCode, getKenloSyncStatus, runKenloSync, copyExternalImages, getPortalListings, getPropertyInteractions, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveDfImoveisCustomerCode, saveProperty, saveSiteSettings, saveTeamMember, sendPropertyInquiry, trackPropertyWhatsAppClick, updatePortalHighlightLevel, updatePropertyStatus, updateTeamMember } from './lib/data'
 import type { KenloSyncStatus, PortalListing } from './lib/data'
 import { dfImoveisMissingFields, dfImoveisSubtypes, dfImoveisTypes } from './lib/dfimoveis'
 import { createZip, type ZipEntry } from './lib/zip'
@@ -1072,6 +1072,7 @@ function AdminPage() {
   const [kenloSyncing, setKenloSyncing] = useState(false)
   const [kenloError, setKenloError] = useState('')
   const [kenloSuccess, setKenloSuccess] = useState('')
+  const [imageCopyProgress, setImageCopyProgress] = useState<string | null>(null)
   const [memberError, setMemberError] = useState('')
   const [memberSuccess, setMemberSuccess] = useState('')
   const [reportPropertyPage, setReportPropertyPage] = useState(1)
@@ -1382,11 +1383,29 @@ function AdminPage() {
         result.skipped ? `${result.skipped} ignorados por terem sido excluídos no painel` : '',
       ].filter(Boolean)
       setKenloSuccess(`Sincronização concluída: ${parts.join(' · ')}.`)
-      await refreshData()
+      // Fotos novas do Kenlo já vão para o Storage do site.
+      await copyImagesToSite(`Sincronização concluída: ${parts.join(' · ')}.`)
     } catch (reason) {
       setKenloError(reason instanceof Error ? reason.message : 'Não foi possível sincronizar com o Kenlo.')
     } finally {
       setKenloSyncing(false)
+      getKenloSyncStatus().then(setKenloStatus).catch(() => undefined)
+    }
+  }
+  async function copyImagesToSite(prefix = '') {
+    setKenloError('')
+    setImageCopyProgress('Copiando fotos para o site...')
+    try {
+      const result = await copyExternalImages((progress) => setImageCopyProgress(`Copiando fotos para o site: ${progress.copied} copiadas${progress.remaining ? `, faltam ${progress.remaining}` : ''}...`))
+      const summary = result.copied || result.failed
+        ? `Fotos: ${result.copied} copiadas para o site${result.failed ? `, ${result.failed} não puderam ser copiadas (veja os logs de kenlo-images-copy)` : ''}.`
+        : 'Todas as fotos já estão guardadas no site.'
+      setKenloSuccess([prefix, summary].filter(Boolean).join(' '))
+      await refreshData()
+    } catch (reason) {
+      setKenloError(reason instanceof Error ? reason.message : 'Não foi possível copiar as fotos.')
+    } finally {
+      setImageCopyProgress(null)
       getKenloSyncStatus().then(setKenloStatus).catch(() => undefined)
     }
   }
@@ -1735,11 +1754,14 @@ function AdminPage() {
               Imóveis vinculados ao Kenlo: {kenloStatus.linkedCount}.
               {' '}{kenloStatus.lastSuccess ? `Última sincronização concluída: ${new Date(kenloStatus.lastSuccess.finished_at ?? kenloStatus.lastSuccess.started_at).toLocaleString('pt-BR')} (${kenloStatus.lastSuccess.trigger === 'cron' ? 'automática' : 'manual'}).` : 'Nenhuma sincronização concluída ainda.'}
               {kenloStatus.lastRun?.status === 'running' && ' Há uma sincronização em andamento.'}
+              {' '}{kenloStatus.externalImages ? `Fotos ainda hospedadas fora do site (Kenlo): ${kenloStatus.externalImages}.` : 'Todas as fotos estão guardadas no site.'}
             </p>}
             {kenloStatus?.lastRun?.status === 'error' && <div className="admin-alert error-alert" role="alert">Última tentativa ({new Date(kenloStatus.lastRun.started_at).toLocaleString('pt-BR')}) falhou: {kenloStatus.lastRun.error}</div>}
             <div className="settings-submit">
-              <button type="button" className="button button-dark" disabled={kenloSyncing || kenloStatus?.available === false} onClick={() => void syncKenlo()}>{kenloSyncing ? 'Sincronizando...' : 'Sincronizar agora'}</button>
+              <button type="button" className="button button-dark" disabled={kenloSyncing || Boolean(imageCopyProgress) || kenloStatus?.available === false} onClick={() => void syncKenlo()}>{kenloSyncing ? 'Sincronizando...' : 'Sincronizar agora'}</button>
+              <button type="button" className="button button-outline" disabled={kenloSyncing || Boolean(imageCopyProgress) || kenloStatus?.available === false} onClick={() => void copyImagesToSite()}>{imageCopyProgress ? 'Copiando fotos...' : 'Copiar fotos para o site'}</button>
             </div>
+            {imageCopyProgress && <div className="admin-alert info-alert" role="status">{imageCopyProgress}</div>}
             {kenloError && <div className="admin-alert error-alert" role="alert">{kenloError}</div>}
             {kenloSuccess && <div className="admin-alert success-alert" role="status">{kenloSuccess}</div>}
           </section>
