@@ -106,6 +106,32 @@ export interface Property {
   property_links?: PropertyLink[]
   status_history?: PropertyStatusHistory[]
   integrations?: PropertyIntegration[]
+  kenlo?: KenloListingLink | null
+}
+
+/** Vínculo de um imóvel importado do Kenlo (tabela kenlo_listings). */
+export interface KenloListingLink {
+  listing_id: string
+  property_id: string | null
+  property_code: string | null
+  removed_at: string | null
+  synced_at: string
+}
+
+export interface KenloSyncRun {
+  id: number
+  trigger: 'manual' | 'cron'
+  status: 'running' | 'success' | 'error'
+  started_at: string
+  finished_at: string | null
+  listings_found: number | null
+  created_count: number
+  updated_count: number
+  unchanged_count: number
+  paused_count: number
+  republished_count: number
+  skipped_count: number
+  error: string | null
 }
 
 export interface PropertyImage {
@@ -266,6 +292,8 @@ export interface Database {
       property_interactions: DbTable<PropertyInteraction, Partial<PropertyInteraction> & Pick<PropertyInteraction, 'property_code' | 'property_title' | 'property_neighborhood' | 'property_city' | 'property_state' | 'property_type' | 'property_purpose' | 'property_status' | 'property_created_at' | 'interested_name' | 'interested_email' | 'interested_phone' | 'interaction_type'>>
       imovel_integracoes: DbTable<PropertyIntegration, Partial<PropertyIntegration> & Pick<PropertyIntegration, 'imovel_id' | 'portal'>>
       portal_configurations: DbTable<{ portal: IntegrationPortal; customer_code: string; updated_at: string }>
+      kenlo_listings: DbTable<KenloListingLink>
+      kenlo_sync_runs: DbTable<KenloSyncRun>
       profiles: DbTable<{ id: string; role: string; full_name: string | null }>
       site_settings: DbTable<SiteSettings>
     }

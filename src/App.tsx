@@ -6,8 +6,8 @@ import {
   KeyRound, LayoutDashboard, LogOut, Mail, MapPin, Menu, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Youtube,
   Square, Trash2, Upload, Users, X,
 } from 'lucide-react'
-import { deleteProperty, deleteTeamMember, getAdminProperties, getDfImoveisCustomerCode, getPortalListings, getPropertyInteractions, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveDfImoveisCustomerCode, saveProperty, saveSiteSettings, saveTeamMember, sendPropertyInquiry, trackPropertyWhatsAppClick, updatePortalHighlightLevel, updatePropertyStatus, updateTeamMember } from './lib/data'
-import type { PortalListing } from './lib/data'
+import { deleteProperty, deleteTeamMember, getAdminProperties, getDfImoveisCustomerCode, getKenloSyncStatus, runKenloSync, getPortalListings, getPropertyInteractions, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveDfImoveisCustomerCode, saveProperty, saveSiteSettings, saveTeamMember, sendPropertyInquiry, trackPropertyWhatsAppClick, updatePortalHighlightLevel, updatePropertyStatus, updateTeamMember } from './lib/data'
+import type { KenloSyncStatus, PortalListing } from './lib/data'
 import { dfImoveisMissingFields, dfImoveisSubtypes, dfImoveisTypes } from './lib/dfimoveis'
 import { currency, numberValue, whatsappContactUrl, whatsappUrl, youtubeEmbed } from './lib/format'
 import { supabase } from './lib/supabase'
@@ -897,6 +897,7 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
     <div className="admin-page-heading editor-heading"><div><button type="button" className="back-button" onClick={onCancel}><ArrowLeft size={15} /> Todos os imóveis</button><h1>{property ? 'Editar imóvel' : 'Cadastrar imóvel'}</h1><p>Preencha os detalhes para manter sua carteira atualizada.</p></div></div>
     <div className="admin-alert info-alert">{draftRestored ? 'Rascunho recuperado deste navegador. Ele será mantido por até 5 minutos após a última alteração.' : 'As alterações não salvas ficam guardadas neste navegador por até 5 minutos após a última alteração.'}{initialDraft?.hadPendingPhotos && ' As fotos locais selecionadas anteriormente precisam ser adicionadas novamente.'}</div>
     {draftError && <div className="admin-alert error-alert">{draftError}</div>}
+    {property?.kenlo && <div className="admin-alert info-alert">Imóvel importado do Kenlo{property.kenlo.property_code ? ` (código ${property.kenlo.property_code})` : ''}. Título, tipo, finalidade, endereço, valores, áreas, cômodos, características, descrição, fotos e vídeos são substituídos pelos dados do Kenlo sempre que o anúncio mudar lá — faça essas alterações no Kenlo. Status, destaque, exclusividade, marca d'água, captador, corretor e portais continuam sendo definidos aqui.{property.kenlo.removed_at ? ' Este anúncio não está mais ativo no Kenlo.' : ''}</div>}
     {error && <div className="admin-alert error-alert">{error}</div>}{success && <div className="admin-alert success-alert">{success}</div>}
     <section className="form-section"><div className="form-section-heading"><span>01</span><div><h2>Identificação</h2><p>Informações básicas do anúncio</p></div></div><div className="admin-form-grid">
       {field('Título do imóvel', 'title', 'text', true, 'Ex.: Apartamento com vista livre')}
@@ -1001,6 +1002,10 @@ function AdminPage() {
   const [dfImoveisConfigSaving, setDfImoveisConfigSaving] = useState(false)
   const [dfImoveisConfigError, setDfImoveisConfigError] = useState('')
   const [dfImoveisConfigSuccess, setDfImoveisConfigSuccess] = useState('')
+  const [kenloStatus, setKenloStatus] = useState<KenloSyncStatus | null>(null)
+  const [kenloSyncing, setKenloSyncing] = useState(false)
+  const [kenloError, setKenloError] = useState('')
+  const [kenloSuccess, setKenloSuccess] = useState('')
   const [memberError, setMemberError] = useState('')
   const [memberSuccess, setMemberSuccess] = useState('')
   const [reportPropertyPage, setReportPropertyPage] = useState(1)
@@ -1097,6 +1102,14 @@ function AdminPage() {
         if (active) setDfImoveisConfigError(reason instanceof Error ? reason.message : 'Não foi possível carregar a configuração do DF Imóveis.')
       })
       .finally(() => { if (active) setDfImoveisConfigLoading(false) })
+    return () => { active = false }
+  }, [authorized, view])
+  useEffect(() => {
+    if (view !== 'settings' || !authorized) return
+    let active = true
+    getKenloSyncStatus()
+      .then((status) => { if (active) setKenloStatus(status) })
+      .catch((reason) => { if (active) setKenloError(reason instanceof Error ? reason.message : 'Não foi possível carregar a situação da integração com o Kenlo.') })
     return () => { active = false }
   }, [authorized, view])
   useEffect(() => {
@@ -1286,6 +1299,29 @@ function AdminPage() {
       setDfImoveisConfigError(reason instanceof Error ? reason.message : 'Não foi possível salvar a configuração do DF Imóveis.')
     } finally {
       setDfImoveisConfigSaving(false)
+    }
+  }
+  async function syncKenlo() {
+    setKenloError('')
+    setKenloSuccess('')
+    setKenloSyncing(true)
+    try {
+      const result = await runKenloSync()
+      const parts = [
+        `${result.listingsFound} anúncios no Kenlo`,
+        `${result.created} novos`,
+        `${result.updated} atualizados`,
+        result.paused ? `${result.paused} pausados por saírem do Kenlo` : '',
+        result.republished ? `${result.republished} republicados` : '',
+        result.skipped ? `${result.skipped} ignorados por terem sido excluídos no painel` : '',
+      ].filter(Boolean)
+      setKenloSuccess(`Sincronização concluída: ${parts.join(' · ')}.`)
+      await refreshData()
+    } catch (reason) {
+      setKenloError(reason instanceof Error ? reason.message : 'Não foi possível sincronizar com o Kenlo.')
+    } finally {
+      setKenloSyncing(false)
+      getKenloSyncStatus().then(setKenloStatus).catch(() => undefined)
     }
   }
   async function copyDfImoveisFeedUrl() {
@@ -1626,6 +1662,21 @@ function AdminPage() {
             <p className="integration-notice">Selecionados: {dfSelectedProperties.length} · Publicados: {dfPublishedProperties.length} · Prontos para o feed: {dfImoveisCustomerCode.trim() ? dfReadyProperties.length : 0}. O XML é gerado sob demanda; imóveis com status diferente de Publicado ou campos obrigatórios ausentes não são incluídos.</p>
             {dfPendingProperties.length > 0 && <div className="integration-pending-list"><strong>Pendências nos imóveis publicados:</strong><ul>{dfPendingProperties.map(({ property, missing }) => <li key={property.id}>{property.code}: {missing.join(', ')}</li>)}</ul></div>}
           </form>
+          <section className="admin-panel settings-form">
+            <div className="panel-heading"><div><h2>Importação · Kenlo Imob (Mundo-K)</h2><p>Traz os anúncios ativos do Kenlo para o site. Imóveis novos entram publicados; anúncios que saem do Kenlo são pausados aqui.</p></div></div>
+            {kenloStatus && !kenloStatus.available && <div className="admin-alert info-alert">Aplique a migration 20261126120000_kenlo_import.sql no Supabase para habilitar a integração.</div>}
+            {kenloStatus?.available && <p className="integration-notice">
+              Imóveis vinculados ao Kenlo: {kenloStatus.linkedCount}.
+              {' '}{kenloStatus.lastSuccess ? `Última sincronização concluída: ${new Date(kenloStatus.lastSuccess.finished_at ?? kenloStatus.lastSuccess.started_at).toLocaleString('pt-BR')} (${kenloStatus.lastSuccess.trigger === 'cron' ? 'automática' : 'manual'}).` : 'Nenhuma sincronização concluída ainda.'}
+              {kenloStatus.lastRun?.status === 'running' && ' Há uma sincronização em andamento.'}
+            </p>}
+            {kenloStatus?.lastRun?.status === 'error' && <div className="admin-alert error-alert" role="alert">Última tentativa ({new Date(kenloStatus.lastRun.started_at).toLocaleString('pt-BR')}) falhou: {kenloStatus.lastRun.error}</div>}
+            <div className="settings-submit">
+              <button type="button" className="button button-dark" disabled={kenloSyncing || kenloStatus?.available === false} onClick={() => void syncKenlo()}>{kenloSyncing ? 'Sincronizando...' : 'Sincronizar agora'}</button>
+            </div>
+            {kenloError && <div className="admin-alert error-alert" role="alert">{kenloError}</div>}
+            {kenloSuccess && <div className="admin-alert success-alert" role="status">{kenloSuccess}</div>}
+          </section>
         </section>}
       </div>
     </main>

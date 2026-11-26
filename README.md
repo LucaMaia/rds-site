@@ -82,6 +82,63 @@ O feed contém somente imóveis salvos, ativos para DF Imóveis e com status `PU
 
 Essa integração disponibiliza um feed para o DF Imóveis importar; ela não envia anúncios por uma API de publicação direta. A documentação fornecida descreve o layout XML, não o mecanismo de recebimento do portal. A URL é pública para que o portal possa consultá-la; a chave `service_role` é usada apenas pela Edge Function e nunca deve ser colocada no frontend ou em variáveis `VITE_*`.
 
+## Importação do Kenlo Imob (Mundo-K)
+
+A Edge Function `kenlo-sync` lê os anúncios ativos da imobiliária na [Kenlo Open API v2](https://kenlo-open-api-prd.kenlo.io/docs/v2.html) (`GET /v2/listings`) e os cria ou atualiza no site. O vínculo entre anúncio e imóvel fica na tabela `kenlo_listings`; cada execução é registrada em `kenlo_sync_runs`.
+
+Regras da sincronização:
+
+- **Imóvel novo no Kenlo** entra no site com status **Publicado**. O código do Kenlo é usado como código do imóvel quando ainda não existe no site; caso contrário, o site gera um `IMV-xxxx`. O captador é associado quando o nome ou e-mail do captador no Kenlo bate com um captador cadastrado.
+- **Imóvel alterado no Kenlo**: título, tipo, finalidade, endereço, valores, IPTU (anual), áreas, cômodos, vagas, características, descrição, fotos e vídeos são substituídos. Status, destaque, exclusividade, marca d'água, captador, corretor, DF Imóveis e demais campos do site não são alterados. Se nada mudou no Kenlo, o imóvel não é regravado, e edições feitas no painel nesses campos permanecem até a próxima mudança no Kenlo.
+- **Anúncio que saiu do Kenlo**: se estiver Publicado, o imóvel passa a **Pausado**. Se o anúncio voltar e o status continuar Pausado, ele é republicado.
+- **Imóvel excluído no painel** não é recriado nas próximas sincronizações.
+- **Dados do proprietário não são importados**, porque a ficha pública do site exibe nome e telefone do proprietário.
+- As fotos usam os endereços do CDN do Kenlo (não são copiadas para o Storage). Sem o consentimento "Fotos do imóvel (sem marca d'água)" no Mundo-K, o Kenlo entrega as fotos com marca d'água.
+
+Para ativar:
+
+1. No Kenlo, abra **Mundo-K → Detalhes da integração**. Em **Permissões da sua chave**, a importação precisa apenas de leitura (endereço, valores e fotos sem marca d'água). Desmarque adicionar/atualizar/deletar imóveis, atualizar atendimentos e dados de clientes.
+2. Aplique `supabase/migrations/20261126120000_kenlo_import.sql` no Supabase.
+3. Configure os secrets da função (crie um arquivo fora do repositório, por exemplo `~/kenlo.env`, para a chave não ficar no histórico do terminal):
+
+   ```sh
+   # ~/kenlo.env
+   KENLO_API_KEY=<Chave de acesso (API Key)>
+   KENLO_USER_INFO=<Código de autenticação (User info), exatamente como aparece no Mundo-K>
+   KENLO_SYNC_SECRET=<valor aleatório longo, ex.: saída de openssl rand -hex 32>
+   ```
+
+   ```sh
+   supabase secrets set --env-file ~/kenlo.env
+   supabase functions deploy kenlo-sync
+   ```
+
+   `ALLOWED_ORIGINS` é o mesmo secret usado por `property-inquiry`. Nunca coloque essas chaves em variáveis `VITE_*`, no `.env.local` ou no git.
+4. No painel, abra **Configurações → Importação · Kenlo Imob** e clique em **Sincronizar agora** para a primeira carga.
+5. Para sincronizar automaticamente a cada hora, rode no SQL Editor (troque o valor pelo mesmo `KENLO_SYNC_SECRET`):
+
+   ```sql
+   create extension if not exists pg_cron;
+   create extension if not exists pg_net;
+   select vault.create_secret('<mesmo valor de KENLO_SYNC_SECRET>', 'kenlo_sync_secret');
+
+   select cron.schedule('kenlo-sync-hourly', '0 * * * *', $$
+     select net.http_post(
+       url := 'https://hfkfmtibaezhocidxmdw.supabase.co/functions/v1/kenlo-sync',
+       headers := jsonb_build_object(
+         'Content-Type', 'application/json',
+         'x-kenlo-sync-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'kenlo_sync_secret')
+       ),
+       body := '{}'::jsonb,
+       timeout_milliseconds := 300000
+     );
+   $$);
+   ```
+
+   Para parar: `select cron.unschedule('kenlo-sync-hourly');`.
+
+No período de teste do Mundo-K, o Kenlo limita a quantidade de registros e mascara dados pessoais; com o plano K2 esses limites deixam de valer.
+
 ## Verificação
 
 ```sh

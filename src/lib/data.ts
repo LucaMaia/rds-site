@@ -1,6 +1,6 @@
 import { demoCaptors, demoProperties } from './demo'
 import { isSupabaseConfigured, supabase } from './supabase'
-import type { Captor, IntegrationPortal, PortalHighlightLevel, Property, PropertyImage, PropertyInput, PropertyInquiryInput, PropertyIntegration, PropertyInteraction, PropertyInteractionType, PropertyLink, PropertyVideo, SiteSettings } from '../types'
+import type { Captor, IntegrationPortal, KenloListingLink, KenloSyncRun, PortalHighlightLevel, Property, PropertyImage, PropertyInput, PropertyInquiryInput, PropertyIntegration, PropertyInteraction, PropertyInteractionType, PropertyLink, PropertyVideo, SiteSettings } from '../types'
 
 function requireSupabase() {
   if (!supabase) throw new Error('Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para acessar o banco de dados.')
@@ -59,6 +59,7 @@ export async function getAdminProperties(): Promise<Property[]> {
   for (const result of [images, videos, links, captors, brokers, history, profiles, integrations]) {
     if (result.error) throw result.error
   }
+  const kenloLinks = await getKenloLinks(ids)
   const captorMap = new Map((captors.data ?? []).map((captor) => [captor.id, captor]))
   const brokerMap = new Map((brokers.data ?? []).map((broker) => [broker.id, broker]))
   const profileMap = new Map((profiles.data ?? []).map((profile) => [profile.id, profile.full_name]))
@@ -71,7 +72,74 @@ export async function getAdminProperties(): Promise<Property[]> {
     property_links: links.data?.filter((link) => link.property_id === property.id) ?? [],
     status_history: history.data?.filter((entry) => entry.property_id === property.id).map((entry) => ({ ...entry, changed_by_name: entry.changed_by ? profileMap.get(entry.changed_by) ?? null : null })) ?? [],
     integrations: integrations.data?.filter((integration) => integration.imovel_id === property.id) ?? [],
+    kenlo: kenloLinks.get(property.id) ?? null,
   }))
+}
+
+function isMissingTable(error: { code?: string } | null): boolean {
+  return error?.code === '42P01' || error?.code === 'PGRST205'
+}
+
+// Vínculos com o Kenlo. Se a migration ainda não foi aplicada, o painel segue funcionando sem eles.
+async function getKenloLinks(propertyIds: string[]): Promise<Map<string, KenloListingLink>> {
+  const client = requireSupabase()
+  const links = new Map<string, KenloListingLink>()
+  for (let index = 0; index < propertyIds.length; index += 200) {
+    const { data, error } = await client.from('kenlo_listings').select('*').in('property_id', propertyIds.slice(index, index + 200))
+    if (isMissingTable(error)) return links
+    if (error) throw error
+    for (const link of data ?? []) if (link.property_id) links.set(link.property_id, link)
+  }
+  return links
+}
+
+export interface KenloSyncStatus {
+  available: boolean
+  lastRun: KenloSyncRun | null
+  lastSuccess: KenloSyncRun | null
+  linkedCount: number
+}
+
+export async function getKenloSyncStatus(): Promise<KenloSyncStatus> {
+  const client = requireSupabase()
+  const [runs, success, linked] = await Promise.all([
+    client.from('kenlo_sync_runs').select('*').order('started_at', { ascending: false }).limit(1),
+    client.from('kenlo_sync_runs').select('*').eq('status', 'success').order('started_at', { ascending: false }).limit(1),
+    client.from('kenlo_listings').select('listing_id', { count: 'exact', head: true }).not('property_id', 'is', null).is('removed_at', null),
+  ])
+  if (isMissingTable(runs.error) || isMissingTable(linked.error)) return { available: false, lastRun: null, lastSuccess: null, linkedCount: 0 }
+  for (const result of [runs, success, linked]) if (result.error) throw result.error
+  return { available: true, lastRun: runs.data?.[0] ?? null, lastSuccess: success.data?.[0] ?? null, linkedCount: linked.count ?? 0 }
+}
+
+export interface KenloSyncResult {
+  listingsFound: number
+  created: number
+  updated: number
+  unchanged: number
+  paused: number
+  republished: number
+  skipped: number
+}
+
+export async function runKenloSync(): Promise<KenloSyncResult> {
+  const client = requireSupabase()
+  const { data, error } = await client.functions.invoke('kenlo-sync', { body: {} })
+  if (!error) return data as KenloSyncResult
+  if ('context' in error && error.context instanceof Response) {
+    const status = error.context.status
+    let message = ''
+    try {
+      const body: unknown = await error.context.clone().json()
+      if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') message = body.error
+    } catch {
+      message = ''
+    }
+    if (message) throw new Error(message)
+    if (status === 404) throw new Error('A função kenlo-sync ainda não foi publicada no Supabase. Rode supabase functions deploy kenlo-sync.')
+    throw new Error(`A sincronização com o Kenlo falhou (erro ${status}). Confira os logs da Edge Function kenlo-sync.`)
+  }
+  throw new Error('Não foi possível conectar à função kenlo-sync. Verifique se ela foi publicada.')
 }
 
 export async function getTeam(): Promise<Captor[]> {
