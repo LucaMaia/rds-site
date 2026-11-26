@@ -15,7 +15,7 @@ import { supabase } from './lib/supabase'
 import { defaultWatermarkPosition, defaultWatermarkTransparency, WatermarkOverlay, WatermarkPreview, watermarkOf } from './components/Watermark'
 import type { Captor, IntegrationPortal, PortalHighlightLevel, Property, PropertyImage, PropertyInput, PropertyInteraction, PropertyLink, PropertyStatus } from './types'
 
-const regions = ['Guará', 'Águas Claras', 'Asa Sul', 'Asa Norte', 'Sudoeste', 'Noroeste', 'Lago Sul', 'Lago Norte', 'Taguatinga', 'Ceilândia', 'Samambaia', 'Vicente Pires', 'Park Sul', 'Jardim Botânico', 'Park Way', 'Sobradinho', 'Valparaíso', 'Cidade Ocidental']
+const regions = ['Guará', 'Águas Claras', 'Asa Sul', 'Asa Norte', 'Sudoeste', 'Noroeste', 'Lago Sul', 'Lago Norte', 'Taguatinga', 'Ceilândia', 'Samambaia', 'Vicente Pires', 'Park Sul', 'Jardim Botânico', 'Park Way', 'Sobradinho', 'Valparaíso', 'Cidade Ocidental', 'Planaltina', 'Paranoá', 'Itapoã', 'São Sebastião', 'Santa Maria', 'Recanto das Emas']
 const propertyTypes = ['Apartamento', 'Casa', 'Casa em condomínio', 'Cobertura', 'Kitnet', 'Terreno', 'Comercial', 'Chácara']
 const portalHighlightLevels: Array<[PortalHighlightLevel, string]> = [['basico', 'Básico'], ['destaque', 'Destaque'], ['super_destaque', 'Super Destaque']]
 const infrastructureOptions = ['Alarme', 'Ar-condicionado', 'Aquecimento de água', 'Energia solar', 'Imóvel em condomínio', 'Interfone', 'Internet', 'Mobiliado', 'Placas fotovoltaicas', 'Portão elétrico', 'Semimobiliado', 'Terraço', 'TV a cabo']
