@@ -341,7 +341,9 @@ export async function saveTeamMember(kind: 'captor' | 'broker', member: Partial<
 
 export async function saveProperty(input: PropertyInput, id: string | null, photoFiles: File[], videoUrls: string[], links: PropertyLink[], keptImages: PropertyImage[] = [], duplicateImageUrls: string[] = [], activePortals: IntegrationPortal[] = []): Promise<void> {
   const client = requireSupabase()
-  const { code, ...fields } = input
+  // O rascunho do editor pode trazer campos que não são colunas (ex.: kenlo, de versões anteriores).
+  const { code, kenlo: _kenlo, ...fields } = input as PropertyInput & { kenlo?: unknown }
+  void _kenlo
   const payload = code.trim() ? { ...fields, code: code.trim() } : fields
   const saved = id
     ? await client.from('properties').update(payload).eq('id', id).select('id').single()

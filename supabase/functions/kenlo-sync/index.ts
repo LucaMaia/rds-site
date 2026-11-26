@@ -201,6 +201,52 @@ function siteType(rawType: string, usageType: string): string {
   return rawType || 'Casa'
 }
 
+// Características chegam como códigos em inglês (padrão VRSync usado pelos portais).
+// Os nomes seguem os usados no cadastro do site e nos filtros do DF Imóveis.
+const featureNames: Record<string, string> = {
+  AIR_CONDITIONING: 'Ar-condicionado', CENTRAL_AIR_CONDITIONING: 'Ar-condicionado central',
+  CABINET_KITCHEN: 'Armários na cozinha', CABINET_BEDROOM: 'Armários no quarto', CABINET_HALLWAY: 'Armários no corredor',
+  CABINET_BATHROOM: 'Armários no banheiro', CABINET_SERVICE_AREA: 'Armários na área de serviço', CABINET_LIVING_ROOM: 'Armários na sala',
+  BUILTIN_WARDROBE: 'Armários embutidos', CLOSET: 'Closet', WALK_IN_CLOSET: 'Closet',
+  ELECTRIC_GATE: 'Portão eletrônico', INTERCOM: 'Interfone', ALARM_SYSTEM: 'Sistema de alarme', SECURITY_CAMERA: 'Câmeras de segurança',
+  CLOSED_CIRCUIT_TELEVISION: 'Circuito de TV', SECURITY_24_HOURS: 'Portaria 24h', CONCIERGE_24H: 'Portaria 24h', DOORMAN: 'Portaria',
+  WATCHMAN: 'Vigia', GUARDHOUSE: 'Guarita', GATED_COMMUNITY: 'Condomínio fechado', DIGITAL_LOCK: 'Fechadura digital', SMART_LOCK: 'Fechadura digital',
+  POOL: 'Piscina', SWIMMING_POOL: 'Piscina', HEATED_POOL: 'Piscina aquecida', CHILDREN_POOL: 'Piscina infantil', PRIVATE_POOL: 'Piscina privativa',
+  BARBECUE_GRILL: 'Churrasqueira', BARBECUE: 'Churrasqueira', GOURMET_SPACE: 'Espaço gourmet', GOURMET_BALCONY: 'Varanda gourmet', GOURMET_KITCHEN: 'Cozinha gourmet',
+  BALCONY: 'Varanda', TERRACE: 'Terraço', GARDEN: 'Jardim', BACKYARD: 'Quintal', DECK: 'Deck',
+  GYM: 'Academia', FITNESS_ROOM: 'Academia', SAUNA: 'Sauna', SPA: 'Spa', MASSAGE_ROOM: 'Sala de massagem',
+  PLAYGROUND: 'Playground', PARTY_HALL: 'Salão de festas', PARTY_ROOM: 'Salão de festas', GAMES_ROOM: 'Salão de jogos', TOY_LIBRARY: 'Brinquedoteca',
+  SPORTS_COURT: 'Quadra poliesportiva', POLY_SPORTS_COURT: 'Quadra poliesportiva', TENNIS_COURT: 'Quadra de tênis', SQUASH: 'Quadra de squash',
+  RECREATION_AREA: 'Área de lazer', LEISURE_AREA: 'Área de lazer', CINEMA: 'Cinema', SPACE_FOR_PARTIES: 'Salão de festas',
+  ELEVATOR: 'Elevador', SERVICE_ELEVATOR: 'Elevador de serviço', BIKE_RACK: 'Bicicletário', COWORKING: 'Coworking', LAUNDRY: 'Lavanderia',
+  SERVICE_AREA: 'Área de serviço', MAID_QUARTERS: 'Dependência de empregada', SERVICE_BATHROOM: 'Banheiro de serviço',
+  AMERICAN_KITCHEN: 'Cozinha americana', KITCHEN: 'Cozinha', PANTRY: 'Despensa', OFFICE: 'Escritório', HOME_OFFICE: 'Escritório',
+  LAVABO: 'Lavabo', WASHBASIN: 'Lavabo', FIREPLACE: 'Lareira', BATHTUB: 'Banheira', HYDROMASSAGE: 'Hidromassagem', JACUZZI: 'Hidromassagem',
+  FURNISHED: 'Mobiliado', SEMI_FURNISHED: 'Semimobiliado', PETS_ALLOWED: 'Aceita pets', PET_SPACE: 'Espaço pet',
+  SOLAR_HEATING: 'Aquecimento solar', GAS_HEATING: 'Aquecimento a gás', HEATING: 'Aquecimento', CENTRAL_GAS: 'Gás canalizado', GAS_SHOWER: 'Gás canalizado',
+  CABLE_TV: 'TV a cabo', INTERNET_ACCESS: 'Internet', WIFI: 'Wi-Fi', WATER_TANK: "Caixa d'água", ARTESIAN_WELL: 'Poço artesiano',
+  GENERATOR: 'Gerador', SOLAR_ENERGY: 'Energia solar', ACCESSIBILITY: 'Acessibilidade', DISABLED_ACCESS: 'Acessibilidade',
+  VIEW: 'Vista panorâmica', SEA_VIEW: 'Vista para o mar', LAKE_VIEW: 'Vista para o lago', MOUNTAIN_VIEW: 'Vista para as montanhas',
+  COVERED_PARKING: 'Vaga coberta', GARAGE: 'Garagem', VISITORS_PARKING: 'Estacionamento para visitantes', DEPOSIT: 'Depósito', STORAGE_ROOM: 'Depósito',
+  WOOD_FLOOR: 'Piso de madeira', LAMINATE_FLOOR: 'Piso laminado', PORCELAIN_FLOOR: 'Porcelanato', CERAMIC_FLOOR: 'Piso cerâmico', MARBLE_FLOOR: 'Piso de mármore',
+  RENOVATED: 'Reformado', NEW: 'Novo', CORNER: 'Esquina', SUN_FACING: 'Sol da manhã', MORNING_SUN: 'Sol da manhã',
+}
+
+function featureName(raw: string): string {
+  const code = raw.trim().toUpperCase().replace(/[\s-]+/g, '_')
+  if (featureNames[code]) return featureNames[code]
+  // Já está em português (ou é texto livre): mantém.
+  if (!/^[A-Z0-9_]+$/.test(raw.trim())) return raw.trim()
+  console.warn(`Kenlo feature without translation: ${raw}`)
+  const words = code.toLowerCase().split('_').filter(Boolean).join(' ')
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+function stateName(value: string, abbreviation: string): string {
+  const fromValue = /^[A-Za-z]{2}$/.test(value) ? stateNames[value.toUpperCase()] : undefined
+  return fromValue || (value.length > 2 ? value : '') || stateNames[abbreviation.toUpperCase()] || value || abbreviation
+}
+
 function purposeOf(listing: KenloListing, sale: number | null, rent: number | null): ImportedFields['purpose'] {
   const purposes = new Set([...(listing.purposes ?? []), ...(listing.purpose ? [listing.purpose] : [])])
   const forSale = purposes.has('FOR_SALE')
@@ -239,7 +285,7 @@ async function mapListing(listing: KenloListing): Promise<Mapped> {
     title: (text(listing.title) || [type, neighborhood && `em ${neighborhood}`].filter(Boolean).join(' ')).slice(0, 200),
     type,
     purpose: purposeOf(listing, sale, rent),
-    state: text(location.state?.value) || stateNames[stateAbbreviation.toUpperCase()] || stateAbbreviation,
+    state: stateName(text(location.state?.value), stateAbbreviation),
     city,
     neighborhood,
     address: nullableText(full.address) ?? nullableText(address.streetName),
@@ -257,7 +303,7 @@ async function mapListing(listing: KenloListing): Promise<Mapped> {
     suites: count(details.suites),
     bathrooms: count(details.bathrooms),
     parking_spaces: count(details.garage?.value),
-    features: [...new Set((details.features ?? []).map(text).filter(Boolean))],
+    features: [...new Set((details.features ?? []).map(text).filter(Boolean).map(featureName))],
     description: plainDescription(text(details.description)),
   }
 
