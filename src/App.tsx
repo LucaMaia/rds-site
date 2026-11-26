@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BadgeCheck, Bath, BedDouble, Building2, Check,
-  ChevronDown, ChevronLeft, ChevronRight, CircleUserRound, Clipboard, DoorOpen, Filter, Globe, Home, Instagram,
+  ChevronDown, ChevronLeft, ChevronRight, CircleUserRound, Clipboard, DoorOpen, Download, Filter, Globe, Home, Instagram,
   KeyRound, LayoutDashboard, LogOut, Mail, MapPin, Menu, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Youtube,
   Square, Trash2, Upload, Users, X,
 } from 'lucide-react'
 import { deleteProperty, deleteTeamMember, getAdminProperties, getDfImoveisCustomerCode, getKenloSyncStatus, runKenloSync, getPortalListings, getPropertyInteractions, getPublicProperties, getSiteSettings, getTeam, isSupabaseConfigured, saveDfImoveisCustomerCode, saveProperty, saveSiteSettings, saveTeamMember, sendPropertyInquiry, trackPropertyWhatsAppClick, updatePortalHighlightLevel, updatePropertyStatus, updateTeamMember } from './lib/data'
 import type { KenloSyncStatus, PortalListing } from './lib/data'
 import { dfImoveisMissingFields, dfImoveisSubtypes, dfImoveisTypes } from './lib/dfimoveis'
+import { createZip, type ZipEntry } from './lib/zip'
 import { currency, numberValue, whatsappContactUrl, whatsappUrl, youtubeEmbed } from './lib/format'
 import { supabase } from './lib/supabase'
 import { defaultWatermarkPosition, defaultWatermarkTransparency, WatermarkEditor, WatermarkOverlay, watermarkOf } from './components/Watermark'
@@ -735,6 +736,57 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
   const [images, setImages] = useState<PropertyImage[]>(() => initialDraft?.images ?? property?.property_images ?? [])
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviewUrls, setPhotoPreviewUrls] = useState<string[]>([])
+  const [photoDownload, setPhotoDownload] = useState<{ busy: boolean; progress: string; error: string }>({ busy: false, progress: '', error: '' })
+  // Baixa as fotos como estão no editor agora: as salvas (já sem as removidas, na ordem atual)
+  // e as novas ainda não salvas. Os arquivos são os originais, sem a marca d'água, que é só visual.
+  async function downloadAllPhotos() {
+    const sources: Array<{ label: string; load: () => Promise<Blob> }> = [
+      ...images.map((image, index) => ({
+        label: index === 0 ? 'principal' : `foto-${index + 1}`,
+        load: async () => {
+          const response = await fetch(image.url, { mode: 'cors', cache: 'no-store' })
+          if (!response.ok) throw new Error(`HTTP ${response.status}`)
+          return response.blob()
+        },
+      })),
+      ...photos.map((file) => ({ label: file.name.replace(/\.[^.]+$/, ''), load: async () => file as Blob })),
+    ]
+    if (!sources.length) return
+    const extensions: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif' }
+    const entries: ZipEntry[] = []
+    const failed: number[] = []
+    setPhotoDownload({ busy: true, progress: `Preparando 0 de ${sources.length}...`, error: '' })
+    for (const [index, source] of sources.entries()) {
+      try {
+        const blob = await source.load()
+        const extension = extensions[blob.type] ?? 'jpg'
+        const label = source.label.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || `foto-${index + 1}`
+        entries.push({ name: `${String(index + 1).padStart(2, '0')}-${label}.${extension}`, data: new Uint8Array(await blob.arrayBuffer()) })
+      } catch (reason) {
+        console.error(`Could not download photo ${index + 1}:`, reason)
+        failed.push(index + 1)
+      }
+      setPhotoDownload((current) => ({ ...current, progress: `Preparando ${index + 1} de ${sources.length}...` }))
+    }
+    if (!entries.length) {
+      setPhotoDownload({ busy: false, progress: '', error: 'Não foi possível baixar nenhuma foto. Verifique a conexão e tente novamente.' })
+      return
+    }
+    const zip = createZip(entries)
+    const baseName = (values.code.trim() || property?.code || 'imovel').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9_-]+/g, '-')
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(zip)
+    link.download = `${baseName}-fotos.zip`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(link.href), 60_000)
+    setPhotoDownload({
+      busy: false,
+      progress: '',
+      error: failed.length ? `ZIP gerado com ${entries.length} de ${sources.length} fotos. Não foi possível baixar: ${failed.map((number) => `foto ${number}`).join(', ')}.` : '',
+    })
+  }
   useEffect(() => {
     const urls = photos.map((file) => URL.createObjectURL(file))
     setPhotoPreviewUrls(urls)
@@ -939,7 +991,10 @@ function PropertyEditor({ property, userId, captors, brokers, onCancel, onSaved 
     <section className="form-section"><div className="form-section-heading"><span>11</span><div><h2>Armários</h2><p>Marque os ambientes que possuem armários</p></div></div>{optionGroup('Ambientes com armários', 'closets', closetOptions)}</section>
     <section className="form-section"><div className="form-section-heading"><span>12</span><div><h2>Tipos de piso</h2><p>Selecione todos os tipos de piso existentes</p></div></div>{optionGroup('Pisos', 'floor_types', floorTypeOptions)}</section>
     <section className="form-section"><div className="form-section-heading"><span>13</span><div><h2>Descrição</h2><p>Apresente os diferenciais deste imóvel</p></div></div><label className="admin-field">Descrição completa<textarea rows={6} value={values.description} onChange={(event) => text('description', event.target.value)} placeholder="Conte o que torna este imóvel especial..." /></label></section>
-    <section className="form-section"><div className="form-section-heading"><span>14</span><div><h2>Fotografias</h2><p>Imagens nítidas ajudam a apresentar melhor o imóvel</p></div></div><label className="upload-zone"><Upload size={23} /><strong>Adicionar fotografias</strong><span>JPG, PNG ou WEBP · até 12 MB por imagem</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => setPhotos((current) => [...current, ...Array.from(event.target.files ?? [])])} /></label><div className="image-manager">
+    <section className="form-section"><div className="form-section-heading"><span>14</span><div><h2>Fotografias</h2><p>Imagens nítidas ajudam a apresentar melhor o imóvel</p></div></div><label className="upload-zone"><Upload size={23} /><strong>Adicionar fotografias</strong><span>JPG, PNG ou WEBP · até 12 MB por imagem</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => setPhotos((current) => [...current, ...Array.from(event.target.files ?? [])])} /></label>
+      <div className="photo-download-bar"><button type="button" className="button button-outline" disabled={photoDownload.busy || (!images.length && !photos.length)} onClick={() => void downloadAllPhotos()}><Download size={15} /> {photoDownload.busy ? photoDownload.progress : `Baixar todas as fotos${images.length + photos.length ? ` (${images.length + photos.length})` : ''}`}</button><small>Inclui as fotos novas ainda não salvas, na ordem exibida. Os arquivos são os originais, sem a marca d'água.</small></div>
+      {photoDownload.error && <div className="admin-alert error-alert" role="alert">{photoDownload.error}</div>}
+      <div className="image-manager">
       {images.map((image, index) => <div className="managed-image" key={image.id}><img src={image.url} alt={`Foto ${index + 1}`} /><span>{index === 0 ? 'Principal' : `Foto ${index + 1}`}</span><div><button type="button" onClick={() => moveImage(index, -1)} aria-label="Mover foto para cima"><ArrowUp size={14} /></button><button type="button" onClick={() => moveImage(index, 1)} aria-label="Mover foto para baixo"><ArrowDown size={14} /></button><button type="button" onClick={() => setImages((current) => current.filter((item) => item.id !== image.id).map((item, order) => ({ ...item, display_order: order, is_cover: order === 0 })))} aria-label="Remover foto"><Trash2 size={14} /></button></div></div>)}
       {photos.map((file, index) => <div className="managed-image" key={`${file.name}-${index}`}><img src={photoPreviewUrls[index]} alt={file.name} /><span>Nova foto</span><button type="button" onClick={() => setPhotos((current) => current.filter((_, fileIndex) => fileIndex !== index))} aria-label="Remover nova foto"><Trash2 size={14} /></button></div>)}
     </div></section>

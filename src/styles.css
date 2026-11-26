@@ -436,6 +436,7 @@ h1,h2,h3,p{margin-top:0}
 .upload-zone span{font-size:8px;color:#898a83}
 .upload-zone input{display:none}
 .image-manager{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:10px;margin-top:12px}
+.photo-download-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:12px}.photo-download-bar small{color:#7a746c;font-size:12px;line-height:1.4;flex:1 1 220px}.photo-download-bar .button{display:inline-flex;align-items:center;gap:7px}
 .managed-image{position:relative;border:1px solid #e7e5de;background:white;padding-bottom:7px}
 .managed-image>img{width:100%;height:86px;object-fit:cover}
 .managed-image>span{font-size:8px;color:#777;padding:7px 6px 0;display:block}
