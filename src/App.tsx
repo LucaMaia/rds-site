@@ -278,10 +278,17 @@ function normalizeSearch(value: string | null | undefined) {
   return (value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR')
 }
 
-function matchesSearchFilters(property: Property, { term, type }: SearchFilters) {
+// Critério único de busca por localização/texto, usado pelos cards de região,
+// pela listagem (/imoveis?q=...) e pela busca da página inicial. Ignora
+// acentos e maiúsculas: o Kenlo envia bairros sem acento ("Jardim Botanico").
+function matchesLocationTerm(property: Property, term: string | null | undefined) {
   const search = normalizeSearch(term)
-  const location = normalizeSearch(`${property.state} ${property.city} ${property.neighborhood} ${property.title} ${property.code}`)
-  return (!search || location.includes(search)) && (!type || property.type === type)
+  if (!search) return true
+  return normalizeSearch(`${property.state} ${property.city} ${property.neighborhood} ${property.title} ${property.code}`).includes(search)
+}
+
+function matchesSearchFilters(property: Property, { term, type }: SearchFilters) {
+  return matchesLocationTerm(property, term) && (!type || property.type === type)
 }
 
 function SearchBox({ initialPurpose = 'VENDA', onFiltersChange }: { initialPurpose?: string; onFiltersChange?: (filters: SearchFilters) => void }) {
@@ -342,12 +349,7 @@ function HomePage() {
     [properties, searchFilters],
   )
   const regionCards = useMemo(() => regions.map((region) => {
-    const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR')
-    const normalizedRegion = normalize(region)
-    const matchingProperties = properties.filter((property) =>
-      [property.state, property.city, property.neighborhood, property.title, property.code]
-        .some((value) => normalize(value).includes(normalizedRegion)),
-    )
+    const matchingProperties = properties.filter((property) => matchesLocationTerm(property, region))
     const selectedProperty = matchingProperties[0]
     const propertyPhoto = selectedProperty?.property_images?.find((image) => image.is_cover)?.url
       ?? selectedProperty?.property_images?.[0]?.url
@@ -412,14 +414,12 @@ function ResultsPage() {
     return () => { active = false }
   }, [])
   const results = useMemo(() => {
-    const search = query.trim().toLocaleLowerCase('pt-BR')
     return properties.filter((property) => {
-      const location = `${property.state} ${property.city} ${property.neighborhood} ${property.title} ${property.code}`.toLocaleLowerCase('pt-BR')
-      return (!search || location.includes(search)) &&
+      return matchesLocationTerm(property, query) &&
         (!purpose || property.purpose === purpose || property.purpose === 'AMBOS') &&
         (!filters.type || property.type === filters.type) &&
-        (!filters.state || property.state.toLowerCase().includes(filters.state.toLowerCase())) &&
-        (!filters.neighborhood || property.neighborhood.toLocaleLowerCase('pt-BR').includes(filters.neighborhood.toLocaleLowerCase('pt-BR')))
+        (!filters.state || normalizeSearch(property.state).includes(normalizeSearch(filters.state))) &&
+        (!filters.neighborhood || normalizeSearch(property.neighborhood).includes(normalizeSearch(filters.neighborhood)))
     }).sort((a, b) => {
       if (sort === 'menor-preco') return (a.sale_price ?? a.rent_price ?? 0) - (b.sale_price ?? b.rent_price ?? 0)
       if (sort === 'maior-preco') return (b.sale_price ?? b.rent_price ?? 0) - (a.sale_price ?? a.rent_price ?? 0)
@@ -434,7 +434,16 @@ function ResultsPage() {
   }
   const activeFilterCount = Number(Boolean(purpose)) + Number(Boolean(filters.type)) + Number(Boolean(filters.state)) + Number(Boolean(filters.neighborhood))
   const availableStates = [...new Set(properties.map((property) => property.state).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
-  const availableNeighborhoods = [...new Set(properties.map((property) => property.neighborhood).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  // Uma opção por bairro, mesmo quando ele vem com e sem acento (o filtro já ignora acentos);
+  // prefere a grafia acentuada para exibir.
+  const neighborhoodsByKey = new Map<string, string>()
+  for (const neighborhood of properties.map((property) => property.neighborhood?.trim()).filter(Boolean)) {
+    const key = normalizeSearch(neighborhood)
+    const current = neighborhoodsByKey.get(key)
+    const hasAccent = (value: string) => /[À-ſ]/.test(value)
+    if (!current || (!hasAccent(current) && hasAccent(neighborhood))) neighborhoodsByKey.set(key, neighborhood)
+  }
+  const availableNeighborhoods = [...neighborhoodsByKey.values()].sort((a, b) => a.localeCompare(b, 'pt-BR'))
   return <><Header /><main className="results-page">
     <div className="results-heading"><div><span className="eyebrow gold">A SUA PRÓXIMA HISTÓRIA</span><h1>Encontre seu imóvel</h1><p>Explore espaços escolhidos para combinar com o seu jeito de viver.</p></div><div className="results-breadcrumb"><Link to="/">Início</Link><ChevronRight size={14} /> Imóveis</div></div>
     <div className="results-layout">
